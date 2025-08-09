@@ -1,12 +1,17 @@
 import { useEffect, useReducer, useRef } from "react";
-import { Stage, Layer, Rect, Ellipse } from "react-konva";
+import { Stage, Layer, Rect, Ellipse, Text } from "react-konva";
 import { useAppContext } from "./context";
-import React from "react";
 import type Konva from "konva";
 import { cx } from "class-variance-authority";
 import type { Tool } from "./types";
 
 const fill = "lightgray";
+const fontSize = 48;
+const fontFamily = "Arial";
+const fontStyle = "normal";
+const lineHeight = 1;
+const letterSpacing = 0;
+const textDecoration = "";
 
 type ShapeData =
   | {
@@ -28,6 +33,20 @@ type ShapeData =
       fill: string;
       offsetX?: number;
       offsetY?: number;
+    }
+  | {
+      id: string;
+      type: "text";
+      x: number;
+      y: number;
+      text: string;
+      fill: string;
+      fontSize: number;
+      fontFamily: string;
+      fontStyle: string;
+      lineHeight: number;
+      letterSpacing: number;
+      textDecoration: string;
     };
 
 type CanvasState = {
@@ -45,13 +64,13 @@ type CanvasAction =
     }
   | {
       type: "SCALE_PENDING_SHAPE";
-      tool: Tool["id"];
       dx: number;
       dy: number;
     }
   | { type: "CONFIRM_PENDING_SHAPE" }
   | { type: "ENABLE_PANNING" }
-  | { type: "DISABLE_PANNING" };
+  | { type: "DISABLE_PANNING" }
+  | { type: "INPUT_PENDING_TEXT"; text: string };
 
 export function Canvas() {
   const { currentTool, scale, onZoom } = useAppContext();
@@ -65,6 +84,11 @@ export function Canvas() {
 
   const handleMouseDown = () => {
     if (!stageRef.current) return;
+
+    if (pendingShape?.type === "text") {
+      dispatch({ type: "CONFIRM_PENDING_SHAPE" });
+      return;
+    }
 
     const pointerPos = stageRef.current.getPointerPosition();
     if (!pointerPos) return;
@@ -95,10 +119,12 @@ export function Canvas() {
     const dx = pos.x - pendingShape.x;
     const dy = pos.y - pendingShape.y;
 
-    dispatch({ type: "SCALE_PENDING_SHAPE", tool: currentTool.id, dx, dy });
+    dispatch({ type: "SCALE_PENDING_SHAPE", dx, dy });
   };
   const handleMouseUp = () => {
-    dispatch({ type: "CONFIRM_PENDING_SHAPE" });
+    if (pendingShape?.type !== "text") {
+      dispatch({ type: "CONFIRM_PENDING_SHAPE" });
+    }
   };
   const handleWheel = (e: Konva.KonvaEventObject<WheelEvent>) => {
     e.evt.preventDefault();
@@ -145,35 +171,107 @@ export function Canvas() {
   }, []);
 
   return (
-    <Stage
-      width={window.innerWidth}
-      height={window.innerHeight}
-      onMouseDown={handleMouseDown}
-      onMouseMove={handleMouseMove}
-      onMouseUp={handleMouseUp}
-      onWheel={handleWheel}
-      draggable={isPanning}
-      ref={stageRef}
-      className={cx(isPanning && "cursor-grab")}
-    >
-      <Layer>
-        {pendingShape && displayShape(pendingShape)}
-        {shapes.map((shape) => (
-          <React.Fragment key={shape.id}>{displayShape(shape)}</React.Fragment>
-        ))}
-      </Layer>
-    </Stage>
+    <>
+      {pendingShape?.type === "text" && stageRef.current && (
+        <PendingTextArea
+          textShape={pendingShape}
+          stage={stageRef.current}
+          onTextChange={(text) =>
+            dispatch({ type: "INPUT_PENDING_TEXT", text })
+          }
+        />
+      )}
+
+      <Stage
+        width={window.innerWidth}
+        height={window.innerHeight}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onWheel={handleWheel}
+        draggable={isPanning}
+        ref={stageRef}
+        className={cx(isPanning && "cursor-grab")}
+      >
+        <Layer>
+          {pendingShape && pendingShape?.type !== "text" && (
+            <Shape data={pendingShape} />
+          )}
+
+          {shapes.map((shape) => (
+            <Shape key={shape.id} data={shape} />
+          ))}
+        </Layer>
+      </Stage>
+    </>
   );
 }
 
-function displayShape(shape: ShapeData) {
-  if (shape.type === "rectangle") {
-    return <Rect {...shape} />;
+function Shape({ data }: { data: ShapeData }) {
+  if (data.type === "rectangle") {
+    return <Rect {...data} />;
   }
-  if (shape.type === "ellipse") {
-    return <Ellipse {...shape} />;
+  if (data.type === "ellipse") {
+    return <Ellipse {...data} />;
+  }
+  if (data.type === "text") {
+    return <Text {...data} />;
   }
   return null;
+}
+
+function PendingTextArea({
+  textShape,
+  stage,
+  onTextChange,
+}: {
+  textShape: Extract<ShapeData, { type: "text" }>;
+  stage: Konva.Stage;
+  onTextChange: (value: string) => void;
+}) {
+  const { x, y } = stage
+    .getAbsoluteTransform()
+    .point({ x: textShape.x, y: textShape.y });
+
+  const textAreaRef = useRef<HTMLTextAreaElement>(null);
+
+  const splittedText = textShape.text.split("\n");
+  const lineLengths = splittedText.map((l) => l.length);
+
+  const cols = Math.max(...lineLengths);
+  const rows = splittedText.length;
+
+  useEffect(() => {
+    const id = setTimeout(() => textAreaRef.current?.focus(), 0);
+    return () => clearTimeout(id);
+  }, []);
+
+  return (
+    <textarea
+      ref={textAreaRef}
+      value={textShape.text}
+      cols={cols || 1}
+      rows={rows || 1}
+      className={cx(
+        "resize-none overflow-hidden outline-0 border-none",
+        textShape.text && "outline-1 outline-blue-600"
+      )}
+      onChange={(e) => onTextChange(e.target.value)}
+      style={{
+        position: "absolute",
+        left: x,
+        top: y,
+        zIndex: 100,
+        fontSize: `${textShape.fontSize * stage.scaleX()}px`,
+        fontFamily: textShape.fontFamily,
+        lineHeight: textShape.lineHeight * stage.scaleX(),
+        letterSpacing: textShape.letterSpacing * stage.scaleX(),
+        textDecoration: textShape.textDecoration,
+        fontStyle: textShape.fontStyle,
+        color: textShape.fill,
+      }}
+    />
+  );
 }
 
 function reducer(state: CanvasState, action: CanvasAction): CanvasState {
@@ -189,6 +287,22 @@ function reducer(state: CanvasState, action: CanvasAction): CanvasState {
         break;
       case "ellipse":
         newShape = { type: "ellipse", id, x, y, fill, radiusX: 0, radiusY: 0 };
+        break;
+      case "text":
+        newShape = {
+          type: "text",
+          id,
+          x,
+          y,
+          fill,
+          text: "",
+          fontSize,
+          fontFamily,
+          fontStyle,
+          letterSpacing,
+          lineHeight,
+          textDecoration,
+        };
         break;
       default:
         break;
@@ -217,6 +331,9 @@ function reducer(state: CanvasState, action: CanvasAction): CanvasState {
           offsetY: -dy / 2,
         };
         break;
+      case "text":
+        scaledPendingShape = state.pendingShape;
+        break;
       default:
         break;
     }
@@ -226,6 +343,23 @@ function reducer(state: CanvasState, action: CanvasAction): CanvasState {
 
   if (action.type === "CONFIRM_PENDING_SHAPE") {
     if (!state.pendingShape) return state;
+
+    if (state.pendingShape.type === "text") {
+      const text = state.pendingShape.text.trim();
+
+      if (text) {
+        return {
+          ...state,
+          pendingShape: null,
+          shapes: [{ ...state.pendingShape, text }, ...state.shapes],
+        };
+      }
+
+      return {
+        ...state,
+        pendingShape: null,
+      };
+    }
 
     return {
       ...state,
@@ -240,6 +374,17 @@ function reducer(state: CanvasState, action: CanvasAction): CanvasState {
 
   if (action.type === "DISABLE_PANNING") {
     return { ...state, isPanning: false };
+  }
+
+  if (action.type === "INPUT_PENDING_TEXT") {
+    if (state.pendingShape?.type !== "text") return state;
+
+    const updatedShape = {
+      ...state.pendingShape,
+      text: action.text,
+    };
+
+    return { ...state, pendingShape: updatedShape };
   }
 
   throw new Error(`Unknown Action Type`);
