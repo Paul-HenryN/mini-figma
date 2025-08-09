@@ -264,7 +264,7 @@ function PendingTextArea({
         zIndex: 100,
         fontSize: `${textShape.fontSize * stage.scaleX()}px`,
         fontFamily: textShape.fontFamily,
-        lineHeight: textShape.lineHeight * stage.scaleX(),
+        lineHeight: textShape.lineHeight,
         letterSpacing: textShape.letterSpacing * stage.scaleX(),
         textDecoration: textShape.textDecoration,
         fontStyle: textShape.fontStyle,
