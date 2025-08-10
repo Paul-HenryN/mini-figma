@@ -84,7 +84,7 @@ export function Toolbar() {
         })}
       </ul>
 
-      <Menubar className="absolute bottom-15 right-0">
+      <Menubar className="absolute bottom-15 right-10">
         <MenubarMenu>
           <MenubarTrigger>
             {formattedScale}% <ChevronDownIcon className="size-3 ml-1" />
