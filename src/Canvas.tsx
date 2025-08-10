@@ -1,11 +1,12 @@
 import { useEffect, useReducer, useRef } from "react";
-import { Stage, Layer, Rect, Ellipse, Text, Transformer } from "react-konva";
+import { Stage, Layer, Transformer } from "react-konva";
 import { useAppContext } from "./context";
 import type Konva from "konva";
 import { cx } from "class-variance-authority";
-import type { Tool } from "./types";
+import type { ShapeData, Tool } from "./types";
 import { APP_TOOLS } from "./const";
-import type { KonvaEventObject } from "konva/lib/Node";
+import { Shape } from "./Shape";
+import { PendingTextArea } from "./PendingTextArea";
 
 const fill = "lightgray";
 const fontSize = 24;
@@ -14,42 +15,6 @@ const fontStyle = "normal";
 const lineHeight = 1;
 const letterSpacing = 0;
 const textDecoration = "";
-
-type ShapeData =
-  | {
-      id: string;
-      type: "rectangle";
-      x: number;
-      y: number;
-      width: number;
-      height: number;
-      fill: string;
-    }
-  | {
-      id: string;
-      type: "ellipse";
-      x: number;
-      y: number;
-      radiusX: number;
-      radiusY: number;
-      fill: string;
-      offsetX?: number;
-      offsetY?: number;
-    }
-  | {
-      id: string;
-      type: "text";
-      x: number;
-      y: number;
-      text: string;
-      fill: string;
-      fontSize: number;
-      fontFamily: string;
-      fontStyle: string;
-      lineHeight: number;
-      letterSpacing: number;
-      textDecoration: string;
-    };
 
 type CanvasState = {
   pendingShape: ShapeData | null;
@@ -246,98 +211,6 @@ export function Canvas() {
         </Layer>
       </Stage>
     </>
-  );
-}
-
-function Shape({
-  data,
-  onClick,
-  isSelected = false,
-}: {
-  data: ShapeData;
-  onClick?: ({ multiSelectEnabled }: { multiSelectEnabled: boolean }) => void;
-  isSelected?: boolean;
-}) {
-  const shapeRef = useRef(null);
-
-  const otherProps = {
-    ref: shapeRef,
-    onClick: (e: KonvaEventObject<MouseEvent>) => {
-      if (shapeRef.current) onClick?.({ multiSelectEnabled: e.evt.shiftKey });
-    },
-    onMouseDown: (e: KonvaEventObject<MouseEvent>) => {
-      e.cancelBubble = true;
-    },
-    onMouseUp: (e: KonvaEventObject<MouseEvent>) => {
-      e.cancelBubble = true;
-    },
-    draggable: isSelected,
-  };
-
-  if (data.type === "rectangle") {
-    return <Rect {...data} {...otherProps} />;
-  }
-  if (data.type === "ellipse") {
-    return <Ellipse {...data} {...otherProps} />;
-  }
-  if (data.type === "text") {
-    return <Text {...data} {...otherProps} />;
-  }
-
-  return null;
-}
-
-function PendingTextArea({
-  textShape,
-  stage,
-  onTextChange,
-}: {
-  textShape: Extract<ShapeData, { type: "text" }>;
-  stage: Konva.Stage;
-  onTextChange: (value: string) => void;
-}) {
-  const { x, y } = stage
-    .getAbsoluteTransform()
-    .point({ x: textShape.x, y: textShape.y });
-
-  const textAreaRef = useRef<HTMLTextAreaElement>(null);
-
-  const splittedText = textShape.text.split("\n");
-  const lineLengths = splittedText.map((l) => l.length);
-
-  const cols = Math.max(...lineLengths);
-  const rows = splittedText.length;
-
-  useEffect(() => {
-    const id = setTimeout(() => textAreaRef.current?.focus(), 0);
-    return () => clearTimeout(id);
-  }, []);
-
-  return (
-    <textarea
-      ref={textAreaRef}
-      value={textShape.text}
-      cols={cols || 1}
-      rows={rows || 1}
-      className={cx(
-        "resize-none overflow-hidden outline-0 border-none",
-        textShape.text && "outline-1 outline-blue-600"
-      )}
-      onChange={(e) => onTextChange(e.target.value)}
-      style={{
-        position: "absolute",
-        left: x,
-        top: y,
-        zIndex: 100,
-        fontSize: `${textShape.fontSize * stage.scaleX()}px`,
-        fontFamily: textShape.fontFamily,
-        lineHeight: textShape.lineHeight,
-        letterSpacing: textShape.letterSpacing * stage.scaleX(),
-        textDecoration: textShape.textDecoration,
-        fontStyle: textShape.fontStyle,
-        color: textShape.fill,
-      }}
-    />
   );
 }
 
