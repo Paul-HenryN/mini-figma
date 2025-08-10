@@ -1,12 +1,14 @@
 import { useEffect, useReducer, useRef } from "react";
-import { Stage, Layer, Rect, Ellipse, Text } from "react-konva";
+import { Stage, Layer, Rect, Ellipse, Text, Transformer } from "react-konva";
 import { useAppContext } from "./context";
 import type Konva from "konva";
 import { cx } from "class-variance-authority";
 import type { Tool } from "./types";
+import { APP_TOOLS } from "./const";
+import type { KonvaEventObject } from "konva/lib/Node";
 
 const fill = "lightgray";
-const fontSize = 48;
+const fontSize = 24;
 const fontFamily = "Arial";
 const fontStyle = "normal";
 const lineHeight = 1;
@@ -53,12 +55,12 @@ type CanvasState = {
   pendingShape: ShapeData | null;
   shapes: ShapeData[];
   isPanning: boolean;
+  selectedShapes: ShapeData["id"][];
 };
 type CanvasAction =
   | {
       type: "CREATE_PENDING_SHAPE";
       tool: Tool["id"];
-      id: string;
       x: number;
       y: number;
     }
@@ -70,25 +72,38 @@ type CanvasAction =
   | { type: "CONFIRM_PENDING_SHAPE" }
   | { type: "ENABLE_PANNING" }
   | { type: "DISABLE_PANNING" }
-  | { type: "INPUT_PENDING_TEXT"; text: string };
+  | { type: "INPUT_PENDING_TEXT"; text: string }
+  | {
+      type: "SELECT_SHAPE";
+      shape: ShapeData;
+      multiSelectEnabled: boolean;
+    }
+  | { type: "UNSELECT_ALL" };
 
 export function Canvas() {
-  const { currentTool, scale, onZoom } = useAppContext();
+  const { currentTool, setCurrentTool, scale, onZoom } = useAppContext();
 
-  const [{ pendingShape, shapes, isPanning }, dispatch] = useReducer(reducer, {
-    pendingShape: null,
-    shapes: [],
-    isPanning: false,
-  });
+  const [{ pendingShape, shapes, isPanning, selectedShapes }, dispatch] =
+    useReducer(reducer, {
+      pendingShape: null,
+      shapes: [],
+      isPanning: false,
+      selectedShapes: [],
+    });
   const stageRef = useRef<Konva.Stage>(null);
+  const transformerRef = useRef<Konva.Transformer>(null);
+  const layerRef = useRef<Konva.Layer>(null);
 
   const handleMouseDown = () => {
     if (!stageRef.current) return;
 
     if (pendingShape?.type === "text") {
       dispatch({ type: "CONFIRM_PENDING_SHAPE" });
+      setCurrentTool(APP_TOOLS.MOVE);
       return;
     }
+
+    dispatch({ type: "UNSELECT_ALL" });
 
     const pointerPos = stageRef.current.getPointerPosition();
     if (!pointerPos) return;
@@ -96,12 +111,9 @@ export function Canvas() {
     const transform = stageRef.current.getAbsoluteTransform().copy().invert();
     const pos = transform.point(pointerPos);
 
-    const id = crypto.randomUUID();
-
     dispatch({
       type: "CREATE_PENDING_SHAPE",
       tool: currentTool.id,
-      id,
       x: pos.x,
       y: pos.y,
     });
@@ -122,8 +134,9 @@ export function Canvas() {
     dispatch({ type: "SCALE_PENDING_SHAPE", dx, dy });
   };
   const handleMouseUp = () => {
-    if (pendingShape?.type !== "text") {
+    if (pendingShape && pendingShape?.type !== "text") {
       dispatch({ type: "CONFIRM_PENDING_SHAPE" });
+      setCurrentTool(APP_TOOLS.MOVE);
     }
   };
   const handleWheel = (e: Konva.KonvaEventObject<WheelEvent>) => {
@@ -170,6 +183,17 @@ export function Canvas() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!layerRef.current || !transformerRef.current) return;
+
+    const selectedNodes = layerRef.current.children.filter((child) => {
+      const id = child.getAttrs().id;
+      return id && selectedShapes.includes(id);
+    });
+
+    transformerRef.current.nodes(selectedNodes);
+  }, [selectedShapes]);
+
   return (
     <>
       {pendingShape?.type === "text" && stageRef.current && (
@@ -193,30 +217,73 @@ export function Canvas() {
         ref={stageRef}
         className={cx(isPanning && "cursor-grab")}
       >
-        <Layer>
+        <Layer ref={layerRef}>
           {pendingShape && pendingShape?.type !== "text" && (
             <Shape data={pendingShape} />
           )}
 
           {shapes.map((shape) => (
-            <Shape key={shape.id} data={shape} />
+            <Shape
+              key={shape.id}
+              data={shape}
+              onClick={({ multiSelectEnabled }) => {
+                if (!transformerRef.current) return;
+
+                dispatch({
+                  type: "SELECT_SHAPE",
+                  shape,
+                  multiSelectEnabled,
+                });
+              }}
+              isSelected={selectedShapes.includes(shape.id)}
+            />
           ))}
+
+          <Transformer
+            ref={transformerRef}
+            onMouseDown={(e) => (e.cancelBubble = true)}
+          />
         </Layer>
       </Stage>
     </>
   );
 }
 
-function Shape({ data }: { data: ShapeData }) {
+function Shape({
+  data,
+  onClick,
+  isSelected = false,
+}: {
+  data: ShapeData;
+  onClick?: ({ multiSelectEnabled }: { multiSelectEnabled: boolean }) => void;
+  isSelected?: boolean;
+}) {
+  const shapeRef = useRef(null);
+
+  const otherProps = {
+    ref: shapeRef,
+    onClick: (e: KonvaEventObject<MouseEvent>) => {
+      if (shapeRef.current) onClick?.({ multiSelectEnabled: e.evt.shiftKey });
+    },
+    onMouseDown: (e: KonvaEventObject<MouseEvent>) => {
+      e.cancelBubble = true;
+    },
+    onMouseUp: (e: KonvaEventObject<MouseEvent>) => {
+      e.cancelBubble = true;
+    },
+    draggable: isSelected,
+  };
+
   if (data.type === "rectangle") {
-    return <Rect {...data} />;
+    return <Rect {...data} {...otherProps} />;
   }
   if (data.type === "ellipse") {
-    return <Ellipse {...data} />;
+    return <Ellipse {...data} {...otherProps} />;
   }
   if (data.type === "text") {
-    return <Text {...data} />;
+    return <Text {...data} {...otherProps} />;
   }
+
   return null;
 }
 
@@ -278,8 +345,10 @@ function reducer(state: CanvasState, action: CanvasAction): CanvasState {
   if (action.type === "CREATE_PENDING_SHAPE") {
     if (state.isPanning) return state;
 
-    const { tool, id, x, y } = action;
+    const { tool, x, y } = action;
     let newShape: ShapeData | null = null;
+
+    const id = crypto.randomUUID();
 
     switch (tool) {
       case "rectangle":
@@ -308,7 +377,11 @@ function reducer(state: CanvasState, action: CanvasAction): CanvasState {
         break;
     }
 
-    return { ...state, pendingShape: newShape };
+    return {
+      ...state,
+      pendingShape: newShape,
+      selectedShapes: newShape ? [id] : state.selectedShapes,
+    };
   }
 
   if (action.type === "SCALE_PENDING_SHAPE") {
@@ -344,6 +417,9 @@ function reducer(state: CanvasState, action: CanvasAction): CanvasState {
   if (action.type === "CONFIRM_PENDING_SHAPE") {
     if (!state.pendingShape) return state;
 
+    // Generate a new ID for the confirmed shape
+    const id = crypto.randomUUID();
+
     if (state.pendingShape.type === "text") {
       const text = state.pendingShape.text.trim();
 
@@ -351,7 +427,8 @@ function reducer(state: CanvasState, action: CanvasAction): CanvasState {
         return {
           ...state,
           pendingShape: null,
-          shapes: [{ ...state.pendingShape, text }, ...state.shapes],
+          shapes: [{ ...state.pendingShape, text, id }, ...state.shapes],
+          selectedShapes: [id],
         };
       }
 
@@ -364,12 +441,13 @@ function reducer(state: CanvasState, action: CanvasAction): CanvasState {
     return {
       ...state,
       pendingShape: null,
-      shapes: [state.pendingShape, ...state.shapes],
+      shapes: [{ ...state.pendingShape, id }, ...state.shapes],
+      selectedShapes: [id],
     };
   }
 
   if (action.type === "ENABLE_PANNING") {
-    return { ...state, isPanning: true };
+    return { ...state, isPanning: !state.pendingShape };
   }
 
   if (action.type === "DISABLE_PANNING") {
@@ -385,6 +463,20 @@ function reducer(state: CanvasState, action: CanvasAction): CanvasState {
     };
 
     return { ...state, pendingShape: updatedShape };
+  }
+
+  if (action.type === "SELECT_SHAPE") {
+    const { multiSelectEnabled, shape } = action;
+
+    if (multiSelectEnabled) {
+      return { ...state, selectedShapes: [...state.selectedShapes, shape.id] };
+    }
+
+    return { ...state, selectedShapes: [shape.id] };
+  }
+
+  if (action.type === "UNSELECT_ALL") {
+    return { ...state, selectedShapes: [] };
   }
 
   throw new Error(`Unknown Action Type`);
