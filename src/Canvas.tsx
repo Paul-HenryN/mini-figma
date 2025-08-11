@@ -148,10 +148,6 @@ export function Canvas() {
         className={cx(isPanning && "cursor-grab")}
       >
         <Layer ref={layerRef}>
-          {pendingShape && pendingShape?.type !== "text" && (
-            <Shape data={pendingShape} />
-          )}
-
           {shapes.map((shape) => (
             <Shape
               key={shape.id}
@@ -171,6 +167,10 @@ export function Canvas() {
               stopPropagation={currentTool.id === "move"}
             />
           ))}
+
+          {pendingShape && pendingShape?.type !== "text" && (
+            <Shape data={pendingShape} />
+          )}
 
           <Transformer
             ref={transformerRef}
