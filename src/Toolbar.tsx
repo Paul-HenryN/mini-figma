@@ -1,9 +1,8 @@
 import { Button } from "./components/ui/button";
-import { APP_TOOLS, ZOOM_FACTOR } from "./const";
+import { APP_TOOLS } from "./const";
 import { useAppContext } from "./context";
 import { cn } from "./lib/utils";
 import {
-  ChevronDownIcon,
   CircleIcon,
   MoveIcon,
   SquareIcon,
@@ -11,14 +10,6 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import type { Tool } from "./types";
-import {
-  Menubar,
-  MenubarContent,
-  MenubarItem,
-  MenubarMenu,
-  MenubarShortcut,
-  MenubarTrigger,
-} from "./components/ui/menubar";
 
 const toolIcons: Record<Tool["id"], LucideIcon> = {
   move: MoveIcon,
@@ -27,40 +18,11 @@ const toolIcons: Record<Tool["id"], LucideIcon> = {
   text: TypeIcon,
 };
 
-const ZOOM_OPTIONS: {
-  label: string;
-  shortcut?: string;
-  handler: (scale: number) => number;
-}[] = [
-  {
-    label: "Zoom in",
-    shortcut: "⌘+",
-    handler: (scale) => scale * ZOOM_FACTOR,
-  },
-  {
-    label: "Zoom out",
-    shortcut: "⌘-",
-    handler: (scale) => scale / ZOOM_FACTOR,
-  },
-  {
-    label: "Zoom to 50%",
-    handler: () => 0.5,
-  },
-  {
-    label: "Zoom to 100%",
-    shortcut: "⌘0",
-    handler: () => 1,
-  },
-  {
-    label: "Zoom to 200%",
-    handler: () => 2,
-  },
-] as const;
-
 export function Toolbar() {
-  const { currentTool, setCurrentTool, scale, setScale } = useAppContext();
-
-  const formattedScale = (100 * scale).toFixed(0);
+  const {
+    state: { currentTool },
+    dispatch,
+  } = useAppContext();
 
   return (
     <>
@@ -72,7 +34,7 @@ export function Toolbar() {
             <Button
               key={tool.id}
               variant={currentTool.id === tool.id ? "default" : "outline"}
-              onMouseDown={() => setCurrentTool(tool)}
+              onMouseDown={() => dispatch({ type: "CHANGE_TOOL", tool })}
               className={cn(
                 i !== 0 && "rounded-l-none",
                 i !== Object.values(APP_TOOLS).length - 1 && "rounded-r-none"
@@ -83,25 +45,6 @@ export function Toolbar() {
           );
         })}
       </ul>
-
-      <Menubar className="absolute bottom-15 right-10">
-        <MenubarMenu>
-          <MenubarTrigger>
-            {formattedScale}% <ChevronDownIcon className="size-3 ml-1" />
-          </MenubarTrigger>
-
-          <MenubarContent>
-            {Object.values(ZOOM_OPTIONS).map((option) => (
-              <MenubarItem onMouseDown={() => setScale(option.handler(scale))}>
-                {option.label}
-                {option.shortcut && (
-                  <MenubarShortcut>{option.shortcut}</MenubarShortcut>
-                )}
-              </MenubarItem>
-            ))}
-          </MenubarContent>
-        </MenubarMenu>
-      </Menubar>
     </>
   );
 }

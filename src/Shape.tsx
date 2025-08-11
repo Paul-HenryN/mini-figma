@@ -6,26 +6,29 @@ import type { ShapeData } from "./types";
 export function Shape({
   data,
   onClick,
-  isSelected = false,
+  draggable = false,
+  stopPropagation = false,
 }: {
   data: ShapeData;
-  onClick?: ({ multiSelectEnabled }: { multiSelectEnabled: boolean }) => void;
-  isSelected?: boolean;
+  onClick?: (e: KonvaEventObject<MouseEvent>) => void;
+  draggable?: boolean;
+  stopPropagation?: boolean;
 }) {
   const shapeRef = useRef(null);
 
   const otherProps = {
     ref: shapeRef,
     onClick: (e: KonvaEventObject<MouseEvent>) => {
-      if (shapeRef.current) onClick?.({ multiSelectEnabled: e.evt.shiftKey });
+      e.cancelBubble = stopPropagation;
+      onClick?.(e);
     },
     onMouseDown: (e: KonvaEventObject<MouseEvent>) => {
-      e.cancelBubble = true;
+      e.cancelBubble = stopPropagation;
     },
     onMouseUp: (e: KonvaEventObject<MouseEvent>) => {
-      e.cancelBubble = true;
+      e.cancelBubble = stopPropagation;
     },
-    draggable: isSelected,
+    draggable,
   };
 
   if (data.type === "rectangle") {

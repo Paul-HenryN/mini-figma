@@ -10,3 +10,4 @@ export const APP_TOOLS: Record<string, Tool> = {
 export const ZOOM_FACTOR = 1.05;
 export const MAX_ZOOM = 25;
 export const MIN_ZOOM = 0.02;
+export const DEFAULT_COLOR = "#DDDDDD";
