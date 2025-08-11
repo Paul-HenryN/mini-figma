@@ -5,7 +5,7 @@ import {
 } from "@radix-ui/react-popover";
 import { HexAlphaColorPicker } from "react-colorful";
 import { Input } from "./components/ui/input";
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { DEFAULT_COLOR } from "./const";
 
 export function ColorInput({
@@ -45,6 +45,10 @@ export function ColorInput({
   const handleBlur = () => {
     if (color != inputColor) submit();
   };
+
+  useEffect(() => {
+    setInputColor(color);
+  }, [color]);
 
   return (
     <div className="relative">
