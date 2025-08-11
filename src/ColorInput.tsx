@@ -42,11 +42,15 @@ export function ColorInput({
     onColorChange(newColor);
   };
 
+  const handleBlur = () => {
+    if (color != inputColor) submit();
+  };
+
   return (
     <div className="relative">
       <Popover>
         <PopoverTrigger
-          className="size-7 rounded-sm absolute top-1 left-1"
+          className="size-6 rounded-sm absolute top-1/2 -translate-y-1/2 left-1.5"
           style={{ backgroundColor: color }}
         />
         <PopoverContent>
@@ -58,7 +62,7 @@ export function ColorInput({
         <Input
           value={inputColor}
           onChange={(e) => setInputColor(e.target.value)}
-          onBlur={submit}
+          onBlur={handleBlur}
           className="py-0 pl-10 w-[200px] text-[1px] uppercase"
         />
       </form>
