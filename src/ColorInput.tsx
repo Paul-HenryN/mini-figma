@@ -2,7 +2,7 @@ import {
   Popover,
   PopoverTrigger,
   PopoverContent,
-} from "@radix-ui/react-popover";
+} from "./components/ui/popover";
 import { HexAlphaColorPicker } from "react-colorful";
 import { Input } from "./components/ui/input";
 import { useEffect, useState, type FormEvent } from "react";
@@ -51,13 +51,13 @@ export function ColorInput({
   }, [color]);
 
   return (
-    <div className="relative">
+    <div className="relative w-full">
       <Popover>
         <PopoverTrigger
           className="size-6 rounded-sm absolute top-1/2 -translate-y-1/2 left-1.5"
           style={{ backgroundColor: color }}
         />
-        <PopoverContent>
+        <PopoverContent className="w-fit">
           <HexAlphaColorPicker color={color} onChange={handleColorChange} />
         </PopoverContent>
       </Popover>
@@ -67,7 +67,7 @@ export function ColorInput({
           value={inputColor}
           onChange={(e) => setInputColor(e.target.value)}
           onBlur={handleBlur}
-          className="py-0 pl-10 w-[200px] text-[1px] uppercase"
+          className="pl-10 uppercase border-none"
         />
       </form>
     </div>

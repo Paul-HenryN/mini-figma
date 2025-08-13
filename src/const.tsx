@@ -11,3 +11,6 @@ export const ZOOM_FACTOR = 1.05;
 export const MAX_ZOOM = 25;
 export const MIN_ZOOM = 0.02;
 export const DEFAULT_COLOR = "#DDDDDD";
+export const DEFAULT_STROKE_COLOR = "#000000";
+export const DEFAULT_STROKE_WIDTH = 1;
+export const MAX_STROKE_WIDTH = 1000;

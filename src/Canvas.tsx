@@ -73,6 +73,52 @@ export function Canvas() {
       e.evt.deltaY < 0 ? scale * ZOOM_FACTOR : scale / ZOOM_FACTOR;
     dispatch({ type: "CHANGE_SCALE", scale: newScale });
   };
+  const handleTransform = (e: Konva.KonvaEventObject<Event>) => {
+    const node = e.target;
+    if (!node) return;
+
+    const updatedWith = Math.round(node.width() * node.scaleX());
+    const updatedHeight = Math.round(node.height() * node.scaleY());
+    const updatedX = Math.round(node.x());
+    const updatedY = Math.round(node.y());
+
+    node.scale({ x: 1, y: 1 });
+    node.x(updatedX);
+    node.y(updatedY);
+    node.width(updatedWith);
+    node.height(updatedHeight);
+
+    if (node.getAttrs().type === "ellipse") {
+      node.offsetX(-updatedWith / 2);
+      node.offsetY(-updatedHeight / 2);
+
+      dispatch({
+        type: "UPDATE_SHAPE",
+        shapeId: node.id(),
+        data: {
+          x: updatedX,
+          y: updatedY,
+          width: updatedWith,
+          height: updatedHeight,
+          offsetX: -updatedWith / 2,
+          offsetY: -updatedHeight / 2,
+        },
+      });
+
+      return;
+    }
+
+    dispatch({
+      type: "UPDATE_SHAPE",
+      shapeId: node.id(),
+      data: {
+        x: updatedX,
+        y: updatedY,
+        width: updatedWith,
+        height: updatedHeight,
+      },
+    });
+  };
 
   useEffect(() => {
     if (!stageRef.current) return;
@@ -161,10 +207,19 @@ export function Canvas() {
                   });
                 }
               }}
+              onTransform={handleTransform}
               draggable={
                 selectedShapes.includes(shape.id) && currentTool.id === "move"
               }
               stopPropagation={currentTool.id === "move"}
+              onDragMove={(e) =>
+                dispatch({
+                  type: "MOVE_SHAPE",
+                  shapeId: shape.id,
+                  x: e.target.x(),
+                  y: e.target.y(),
+                })
+              }
             />
           ))}
 

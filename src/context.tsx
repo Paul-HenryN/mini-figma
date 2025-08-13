@@ -50,7 +50,22 @@ type AppAction =
   | { type: "UNSELECT_ALL" }
   | { type: "CHANGE_SCALE"; scale: number }
   | { type: "MOVE_SHAPE"; shapeId: ShapeData["id"]; x: number; y: number }
-  | { type: "CHANGE_COLOR"; color: string };
+  | { type: "CHANGE_COLOR"; color: string | undefined }
+  | {
+      type: "CHANGE_STROKE";
+      color: string | undefined;
+      width: number | undefined;
+    }
+  | {
+      type: "RESIZE";
+      width?: number;
+      height?: number;
+    }
+  | {
+      type: "UPDATE_SHAPE";
+      shapeId: ShapeData["id"];
+      data: Record<string, number | string>;
+    };
 
 type AppContextType = {
   state: AppState;
@@ -110,7 +125,7 @@ function reducer(state: AppState, action: AppAction): AppState {
         newShape = { type: "rectangle", id, x, y, fill, width: 0, height: 0 };
         break;
       case "ellipse":
-        newShape = { type: "ellipse", id, x, y, fill, radiusX: 0, radiusY: 0 };
+        newShape = { type: "ellipse", id, x, y, fill, width: 0, height: 0 };
         break;
       case "text":
         newShape = {
@@ -153,8 +168,8 @@ function reducer(state: AppState, action: AppAction): AppState {
       case "ellipse":
         scaledPendingShape = {
           ...state.pendingShape,
-          radiusX: Math.abs(dx) / 2,
-          radiusY: Math.abs(dy) / 2,
+          width: Math.abs(dx),
+          height: Math.abs(dy),
           offsetX: -dx / 2,
           offsetY: -dy / 2,
         };
@@ -262,6 +277,64 @@ function reducer(state: AppState, action: AppAction): AppState {
       shapes: state.shapes.map((shape) => {
         if (state.selectedShapes.includes(shape.id)) {
           return { ...shape, fill: action.color };
+        }
+
+        return shape;
+      }),
+    };
+  }
+
+  if (action.type === "CHANGE_STROKE") {
+    if (state.selectedShapes.length === 0) return state;
+
+    return {
+      ...state,
+      shapes: state.shapes.map((shape) => {
+        if (state.selectedShapes.includes(shape.id)) {
+          return { ...shape, stroke: action.color, strokeWidth: action.width };
+        }
+
+        return shape;
+      }),
+    };
+  }
+
+  if (action.type === "UPDATE_SHAPE") {
+    return {
+      ...state,
+      shapes: state.shapes.map((shape) => {
+        if (shape.id === action.shapeId) {
+          return { ...shape, ...action.data };
+        }
+
+        return shape;
+      }),
+    };
+  }
+
+  if (action.type === "RESIZE") {
+    return {
+      ...state,
+      shapes: state.shapes.map((shape) => {
+        if (state.selectedShapes.includes(shape.id)) {
+          switch (shape.type) {
+            case "rectangle":
+              return {
+                ...shape,
+                width: action.width || shape.width,
+                height: action.height || shape.height,
+              };
+            case "ellipse":
+              return {
+                ...shape,
+                width: action.width || shape.width,
+                height: action.height || shape.height,
+                offsetX: action.width ? -action.width / 2 : shape.offsetX,
+                offsetY: action.height ? -action.height / 2 : shape.offsetY,
+              };
+            default:
+              return shape;
+          }
         }
 
         return shape;

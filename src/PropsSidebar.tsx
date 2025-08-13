@@ -1,4 +1,4 @@
-import { ChevronDownIcon } from "lucide-react";
+import { ChevronDownIcon, PlusIcon, Trash2Icon } from "lucide-react";
 import {
   Menubar,
   MenubarContent,
@@ -17,10 +17,16 @@ import {
   SidebarSeparator,
 } from "./components/ui/sidebar";
 import { useAppContext } from "./context";
-import { DEFAULT_COLOR, ZOOM_FACTOR } from "./const";
+import {
+  DEFAULT_COLOR,
+  DEFAULT_STROKE_COLOR,
+  DEFAULT_STROKE_WIDTH,
+  ZOOM_FACTOR,
+} from "./const";
 import { Button } from "./components/ui/button";
 import type { ShapeData } from "./types";
 import { ColorInput } from "./ColorInput";
+import { NumberInput } from "./NumberInput";
 
 function getShapeLabel(shapeType: ShapeData["type"]) {
   switch (shapeType) {
@@ -91,36 +97,6 @@ export function PropsSidebar() {
     return `${selectedShapesData.length} selected`;
   };
 
-  const getCurrentColor = () => {
-    if (pendingShape) {
-      return pendingShape.fill;
-    }
-
-    const selectedShapesData = shapes.filter((shape) =>
-      selectedShapes.includes(shape.id)
-    );
-
-    if (selectedShapesData.length === 0) {
-      return DEFAULT_COLOR;
-    }
-
-    if (selectedShapesData.length === 1) {
-      return selectedShapesData[0].fill;
-    }
-
-    if (
-      selectedShapesData.every(
-        (shape) => shape.fill === selectedShapesData[0].fill
-      )
-    ) {
-      return selectedShapesData[0].fill;
-    }
-
-    return -1;
-  };
-
-  const currentColor = getCurrentColor();
-
   return (
     <Sidebar side="right">
       <SidebarContent>
@@ -157,33 +133,357 @@ export function PropsSidebar() {
         <SidebarSeparator />
 
         <SidebarGroup>
-          <SidebarGroupLabel className="text-md first-letter:uppercase">
+          <SidebarGroupLabel className="text-md first-letter:uppercase text-white">
             {getTitle()}
           </SidebarGroupLabel>
         </SidebarGroup>
 
         <SidebarSeparator />
-        {selectedShapes.length > 0 && (
-          <SidebarGroup>
-            <SidebarGroupLabel className="font-bold">Fill</SidebarGroupLabel>
 
-            <SidebarGroupContent>
-              {currentColor !== -1 ? (
-                <ColorInput
-                  color={currentColor}
-                  onColorChange={(newColor) =>
-                    dispatch({ type: "CHANGE_COLOR", color: newColor })
-                  }
-                />
-              ) : (
-                <SidebarGroupLabel>
-                  Click + to replace the mixed content
-                </SidebarGroupLabel>
-              )}
-            </SidebarGroupContent>
-          </SidebarGroup>
+        {selectedShapes.length > 0 && (
+          <>
+            <LayoutPropsGroup />
+            <SidebarSeparator />
+            <FillPropsGroup />
+            <SidebarSeparator />
+            <StrokePropsGroup />
+            <SidebarSeparator />
+          </>
         )}
       </SidebarContent>
     </Sidebar>
   );
+}
+
+function FillPropsGroup() {
+  const {
+    state: { shapes, selectedShapes, pendingShape },
+    dispatch,
+  } = useAppContext();
+
+  const getCurrentFill = () => {
+    if (pendingShape) {
+      return pendingShape.fill;
+    }
+
+    const selectedShapesData = shapes.filter((shape) =>
+      selectedShapes.includes(shape.id)
+    );
+
+    if (selectedShapesData.length === 0) return undefined;
+
+    if (
+      selectedShapesData.every(
+        (shape) => shape.fill === selectedShapesData[0].fill
+      )
+    ) {
+      return selectedShapesData[0].fill;
+    }
+
+    return "mixed";
+  };
+
+  const currentFill = getCurrentFill();
+
+  return (
+    <SidebarGroup>
+      <div className="flex items-center justify-between gap-2">
+        <SidebarGroupTitle>Fill</SidebarGroupTitle>
+
+        {(!currentFill || currentFill === "mixed") && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() =>
+              dispatch({ type: "CHANGE_COLOR", color: DEFAULT_COLOR })
+            }
+          >
+            <PlusIcon className="size-4" />
+          </Button>
+        )}
+      </div>
+
+      {currentFill && (
+        <SidebarGroupContent className="mt-1">
+          {currentFill === "mixed" ? (
+            <SidebarGroupLabel>
+              Click + to replace the mixed content
+            </SidebarGroupLabel>
+          ) : (
+            <div className="flex items-center justify-between gap-2">
+              <ColorInput
+                color={currentFill}
+                onColorChange={(newColor) =>
+                  dispatch({ type: "CHANGE_COLOR", color: newColor })
+                }
+              />
+
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() =>
+                  dispatch({ type: "CHANGE_COLOR", color: undefined })
+                }
+              >
+                <Trash2Icon className="size-4" />
+              </Button>
+            </div>
+          )}
+        </SidebarGroupContent>
+      )}
+    </SidebarGroup>
+  );
+}
+
+function StrokePropsGroup() {
+  const {
+    state: { shapes, selectedShapes, pendingShape },
+    dispatch,
+  } = useAppContext();
+
+  const getCurrentStroke = () => {
+    if (pendingShape && pendingShape.stroke) {
+      return { color: pendingShape.stroke, width: pendingShape.strokeWidth };
+    }
+
+    const selectedShapesData = shapes.filter((shape) =>
+      selectedShapes.includes(shape.id)
+    );
+
+    if (selectedShapesData.length === 0) return undefined;
+
+    if (selectedShapesData.length === 1) {
+      const selectedShape = selectedShapesData[0];
+
+      if (!selectedShape.stroke) return undefined;
+
+      return {
+        color: selectedShape.stroke,
+        width: selectedShape.strokeWidth,
+      };
+    }
+
+    const firstSelectedShape = selectedShapesData[0];
+
+    if (
+      firstSelectedShape.stroke &&
+      selectedShapesData.every(
+        (shape) =>
+          shape.stroke === firstSelectedShape.stroke &&
+          shape.strokeWidth === firstSelectedShape.strokeWidth
+      )
+    ) {
+      return {
+        color: firstSelectedShape.stroke,
+        width: firstSelectedShape.strokeWidth,
+      };
+    }
+
+    if (selectedShapesData.some((shape) => shape.stroke !== undefined)) {
+      return "mixed";
+    }
+  };
+
+  const currentStroke = getCurrentStroke();
+
+  return (
+    <SidebarGroup>
+      <div className="flex items-center justify-between gap-2">
+        <SidebarGroupTitle>Stroke</SidebarGroupTitle>
+
+        {(!currentStroke || currentStroke === "mixed") && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() =>
+              dispatch({
+                type: "CHANGE_STROKE",
+                color: DEFAULT_STROKE_COLOR,
+                width: DEFAULT_STROKE_WIDTH,
+              })
+            }
+          >
+            <PlusIcon className="size-4" />
+          </Button>
+        )}
+      </div>
+
+      {currentStroke && (
+        <SidebarGroupContent className="mt-1">
+          {currentStroke === "mixed" ? (
+            <SidebarGroupLabel>
+              Click + to replace the mixed content
+            </SidebarGroupLabel>
+          ) : (
+            <div className="flex items-center justify-between gap-2">
+              <ColorInput
+                color={currentStroke.color}
+                onColorChange={(newColor) =>
+                  dispatch({
+                    type: "CHANGE_STROKE",
+                    color: newColor,
+                    width: currentStroke.width,
+                  })
+                }
+              />
+
+              <NumberInput
+                min={1}
+                value={currentStroke.width}
+                className="border-none flex-1/2"
+                onValueChange={(newValue) =>
+                  dispatch({
+                    type: "CHANGE_STROKE",
+                    color: currentStroke.color,
+                    width: Number(newValue),
+                  })
+                }
+              />
+
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() =>
+                  dispatch({
+                    type: "CHANGE_STROKE",
+                    color: undefined,
+                    width: undefined,
+                  })
+                }
+              >
+                <Trash2Icon className="size-4" />
+              </Button>
+            </div>
+          )}
+        </SidebarGroupContent>
+      )}
+    </SidebarGroup>
+  );
+}
+
+function LayoutPropsGroup() {
+  const {
+    state: { shapes, selectedShapes, pendingShape },
+    dispatch,
+  } = useAppContext();
+
+  const getCurrentWidth = () => {
+    if (pendingShape) {
+      return getShapeDimensions(pendingShape).width;
+    }
+
+    const selectedShapesData = shapes.filter((shape) =>
+      selectedShapes.includes(shape.id)
+    );
+
+    if (selectedShapesData.length === 0) return undefined;
+
+    if (selectedShapesData.length === 1) {
+      return getShapeDimensions(selectedShapesData[0]).width;
+    }
+
+    const firstSelectedShape = selectedShapesData[0];
+    const firstSelectedShapeDimensions = getShapeDimensions(firstSelectedShape);
+
+    if (
+      selectedShapesData.every((shape) => {
+        const shapeDimensions = getShapeDimensions(shape);
+        return shapeDimensions.width === firstSelectedShapeDimensions.width;
+      })
+    ) {
+      return firstSelectedShapeDimensions.width;
+    }
+
+    return "mixed";
+  };
+
+  const getCurrentHeight = () => {
+    if (pendingShape) {
+      return getShapeDimensions(pendingShape).height;
+    }
+
+    const selectedShapesData = shapes.filter((shape) =>
+      selectedShapes.includes(shape.id)
+    );
+
+    if (selectedShapesData.length === 0) return undefined;
+
+    if (selectedShapesData.length === 1) {
+      return getShapeDimensions(selectedShapesData[0]).height;
+    }
+
+    const firstSelectedShape = selectedShapesData[0];
+    const firstSelectedShapeDimensions = getShapeDimensions(firstSelectedShape);
+
+    if (
+      selectedShapesData.every((shape) => {
+        const shapeDimensions = getShapeDimensions(shape);
+        return shapeDimensions.width === firstSelectedShapeDimensions.height;
+      })
+    ) {
+      return firstSelectedShapeDimensions.height;
+    }
+
+    return "mixed";
+  };
+
+  return (
+    <SidebarGroup>
+      <SidebarGroupTitle>Layout</SidebarGroupTitle>
+
+      <SidebarGroupContent>
+        <SidebarSubGroupTitle>Dimensions</SidebarSubGroupTitle>
+
+        <div className="flex gap-2">
+          <NumberInput
+            value={getCurrentWidth()}
+            min={0}
+            onValueChange={(newValue) =>
+              dispatch({
+                type: "RESIZE",
+                width: newValue,
+              })
+            }
+            placeholder="Width"
+          />
+          <NumberInput
+            value={getCurrentHeight()}
+            min={0}
+            onValueChange={(newValue) =>
+              dispatch({
+                type: "RESIZE",
+                height: newValue,
+              })
+            }
+            placeholder="Height"
+          />
+        </div>
+      </SidebarGroupContent>
+    </SidebarGroup>
+  );
+}
+
+function SidebarGroupTitle({ children }: { children: React.ReactNode }) {
+  return (
+    <SidebarGroupLabel className="text-xs text-white font-bold">
+      {children}
+    </SidebarGroupLabel>
+  );
+}
+
+function SidebarSubGroupTitle({ children }: { children: React.ReactNode }) {
+  return <SidebarGroupLabel className="text-xs">{children}</SidebarGroupLabel>;
+}
+
+function getShapeDimensions(shape: ShapeData) {
+  switch (shape.type) {
+    case "ellipse":
+    case "rectangle":
+      return { width: Math.abs(shape.width), height: Math.abs(shape.height) };
+    case "text":
+      return {
+        width: shape.fontSize * shape.text.length,
+        height: shape.fontSize,
+      };
+  }
 }
