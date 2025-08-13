@@ -13,8 +13,10 @@ import {
   SidebarGroup,
   SidebarGroupContent,
   SidebarGroupLabel,
+  SidebarGroupTitle,
   SidebarHeader,
   SidebarSeparator,
+  SidebarSubGroupTitle,
 } from "./components/ui/sidebar";
 import { useAppContext } from "./context";
 import {
@@ -551,18 +553,6 @@ function PositionPropsGroup() {
       </SidebarGroupContent>
     </SidebarGroup>
   );
-}
-
-function SidebarGroupTitle({ children }: { children: React.ReactNode }) {
-  return (
-    <SidebarGroupLabel className="text-xs text-white font-bold">
-      {children}
-    </SidebarGroupLabel>
-  );
-}
-
-function SidebarSubGroupTitle({ children }: { children: React.ReactNode }) {
-  return <SidebarGroupLabel className="text-xs">{children}</SidebarGroupLabel>;
 }
 
 function getShapeDimensions(shape: ShapeData) {

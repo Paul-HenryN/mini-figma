@@ -44,8 +44,8 @@ type AppAction =
   | { type: "INPUT_PENDING_TEXT"; text: string }
   | {
       type: "SELECT_SHAPE";
-      shape: ShapeData;
-      multiSelectEnabled: boolean;
+      shapeId: ShapeData["id"];
+      multiSelectEnabled?: boolean;
     }
   | { type: "UNSELECT_ALL" }
   | { type: "CHANGE_SCALE"; scale: number }
@@ -126,15 +126,40 @@ function reducer(state: AppState, action: AppAction): AppState {
 
     switch (state.currentTool.id) {
       case "rectangle":
-        newShape = { type: "rectangle", id, x, y, fill, width: 0, height: 0 };
+        const rectangleIndex =
+          state.shapes.filter((shape) => shape.type === "rectangle").length + 1;
+
+        newShape = {
+          type: "rectangle",
+          id,
+          name: `Rectangle ${rectangleIndex}`,
+          x,
+          y,
+          fill,
+          width: 0,
+          height: 0,
+        };
         break;
       case "ellipse":
-        newShape = { type: "ellipse", id, x, y, fill, width: 0, height: 0 };
+        const ellipseIndex =
+          state.shapes.filter((shape) => shape.type === "ellipse").length + 1;
+
+        newShape = {
+          type: "ellipse",
+          id,
+          name: `Ellipse ${ellipseIndex}`,
+          x,
+          y,
+          fill,
+          width: 0,
+          height: 0,
+        };
         break;
       case "text":
         newShape = {
           type: "text",
           id,
+          name: "",
           x,
           y,
           fill,
@@ -199,7 +224,10 @@ function reducer(state: AppState, action: AppAction): AppState {
         return {
           ...state,
           pendingShape: null,
-          shapes: [{ ...state.pendingShape, text, id }, ...state.shapes],
+          shapes: [
+            ...state.shapes,
+            { ...state.pendingShape, text, id, name: text },
+          ],
           selectedShapes: [id],
           currentTool: APP_TOOLS.MOVE,
         };
@@ -234,19 +262,20 @@ function reducer(state: AppState, action: AppAction): AppState {
     const updatedShape = {
       ...state.pendingShape,
       text: action.text,
+      name: action.text,
     };
 
     return { ...state, pendingShape: updatedShape };
   }
 
   if (action.type === "SELECT_SHAPE") {
-    const { multiSelectEnabled, shape } = action;
+    const { multiSelectEnabled, shapeId } = action;
 
     if (multiSelectEnabled) {
-      return { ...state, selectedShapes: [...state.selectedShapes, shape.id] };
+      return { ...state, selectedShapes: [...state.selectedShapes, shapeId] };
     }
 
-    return { ...state, selectedShapes: [shape.id] };
+    return { ...state, selectedShapes: [shapeId] };
   }
 
   if (action.type === "UNSELECT_ALL") {

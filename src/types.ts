@@ -5,6 +5,7 @@ export type Tool = {
 
 export type ShapeData = {
   id: string;
+  name: string;
   x: number;
   y: number;
   fill?: string;

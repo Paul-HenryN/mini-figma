@@ -217,7 +217,7 @@ export function Canvas() {
                 if (currentTool.id === "move") {
                   dispatch({
                     type: "SELECT_SHAPE",
-                    shape,
+                    shapeId: shape.id,
                     multiSelectEnabled: e.evt.shiftKey,
                   });
                 }

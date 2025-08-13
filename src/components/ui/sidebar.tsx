@@ -695,6 +695,18 @@ function SidebarMenuSubButton({
   );
 }
 
+function SidebarGroupTitle({ children }: { children: React.ReactNode }) {
+  return (
+    <SidebarGroupLabel className="text-xs text-white font-bold">
+      {children}
+    </SidebarGroupLabel>
+  );
+}
+
+function SidebarSubGroupTitle({ children }: { children: React.ReactNode }) {
+  return <SidebarGroupLabel className="text-xs">{children}</SidebarGroupLabel>;
+}
+
 export {
   Sidebar,
   SidebarContent,
@@ -719,5 +731,7 @@ export {
   SidebarRail,
   SidebarSeparator,
   SidebarTrigger,
+  SidebarGroupTitle,
+  SidebarSubGroupTitle,
   useSidebar,
 };
