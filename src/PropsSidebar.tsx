@@ -142,6 +142,8 @@ export function PropsSidebar() {
 
         {selectedShapes.length > 0 && (
           <>
+            <PositionPropsGroup />
+            <SidebarSeparator />
             <LayoutPropsGroup />
             <SidebarSeparator />
             <FillPropsGroup />
@@ -418,7 +420,7 @@ function LayoutPropsGroup() {
     if (
       selectedShapesData.every((shape) => {
         const shapeDimensions = getShapeDimensions(shape);
-        return shapeDimensions.width === firstSelectedShapeDimensions.height;
+        return shapeDimensions.height === firstSelectedShapeDimensions.height;
       })
     ) {
       return firstSelectedShapeDimensions.height;
@@ -453,6 +455,94 @@ function LayoutPropsGroup() {
               dispatch({
                 type: "RESIZE",
                 height: newValue,
+              })
+            }
+            placeholder="Height"
+          />
+        </div>
+      </SidebarGroupContent>
+    </SidebarGroup>
+  );
+}
+
+function PositionPropsGroup() {
+  const {
+    state: { shapes, selectedShapes, pendingShape },
+    dispatch,
+  } = useAppContext();
+
+  const getCurrentX = () => {
+    if (pendingShape) {
+      return pendingShape.x;
+    }
+
+    const selectedShapesData = shapes.filter((shape) =>
+      selectedShapes.includes(shape.id)
+    );
+
+    if (selectedShapesData.length === 0) return undefined;
+
+    if (selectedShapesData.length === 1) {
+      return selectedShapesData[0].x;
+    }
+
+    const firstSelectedShape = selectedShapesData[0];
+
+    if (selectedShapesData.every((shape) => shape.x === firstSelectedShape.x)) {
+      return firstSelectedShape.x;
+    }
+
+    return "mixed";
+  };
+
+  const getCurrentY = () => {
+    if (pendingShape) {
+      return pendingShape.y;
+    }
+
+    const selectedShapesData = shapes.filter((shape) =>
+      selectedShapes.includes(shape.id)
+    );
+
+    if (selectedShapesData.length === 0) return undefined;
+
+    if (selectedShapesData.length === 1) {
+      return selectedShapesData[0].y;
+    }
+
+    const firstSelectedShape = selectedShapesData[0];
+
+    if (selectedShapesData.every((shape) => shape.y === firstSelectedShape.y)) {
+      return firstSelectedShape.y;
+    }
+
+    return "mixed";
+  };
+
+  return (
+    <SidebarGroup>
+      <SidebarGroupTitle>Position</SidebarGroupTitle>
+
+      <SidebarGroupContent>
+        <SidebarSubGroupTitle>Position</SidebarSubGroupTitle>
+
+        <div className="flex gap-2">
+          <NumberInput
+            value={getCurrentX()}
+            onValueChange={(newValue) =>
+              dispatch({
+                type: "MOVE",
+                x: newValue,
+              })
+            }
+            placeholder="Width"
+          />
+          <NumberInput
+            value={getCurrentY()}
+            onValueChange={(newValue) =>
+              dispatch({
+                type: "MOVE",
+                y: newValue,
               })
             }
             placeholder="Height"

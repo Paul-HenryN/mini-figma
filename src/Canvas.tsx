@@ -119,6 +119,21 @@ export function Canvas() {
       },
     });
   };
+  const handleDragMove = (e: Konva.KonvaEventObject<DragEvent>) => {
+    const node = e.target;
+
+    const updatedX = Math.round(node.x());
+    const updatedY = Math.round(node.y());
+
+    node.x(updatedX);
+    node.y(updatedY);
+
+    dispatch({
+      type: "UPDATE_SHAPE",
+      shapeId: node.id(),
+      data: { x: updatedX, y: updatedY },
+    });
+  };
 
   useEffect(() => {
     if (!stageRef.current) return;
@@ -212,14 +227,7 @@ export function Canvas() {
                 selectedShapes.includes(shape.id) && currentTool.id === "move"
               }
               stopPropagation={currentTool.id === "move"}
-              onDragMove={(e) =>
-                dispatch({
-                  type: "MOVE_SHAPE",
-                  shapeId: shape.id,
-                  x: e.target.x(),
-                  y: e.target.y(),
-                })
-              }
+              onDragMove={handleDragMove}
             />
           ))}
 

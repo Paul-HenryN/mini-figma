@@ -49,7 +49,6 @@ type AppAction =
     }
   | { type: "UNSELECT_ALL" }
   | { type: "CHANGE_SCALE"; scale: number }
-  | { type: "MOVE_SHAPE"; shapeId: ShapeData["id"]; x: number; y: number }
   | { type: "CHANGE_COLOR"; color: string | undefined }
   | {
       type: "CHANGE_STROKE";
@@ -60,6 +59,11 @@ type AppAction =
       type: "RESIZE";
       width?: number;
       height?: number;
+    }
+  | {
+      type: "MOVE";
+      x?: number;
+      y?: number;
     }
   | {
       type: "UPDATE_SHAPE";
@@ -256,12 +260,12 @@ function reducer(state: AppState, action: AppAction): AppState {
     };
   }
 
-  if (action.type === "MOVE_SHAPE") {
+  if (action.type === "MOVE") {
     return {
       ...state,
       shapes: state.shapes.map((shape) => {
-        if (shape.id === action.shapeId) {
-          return { ...shape, x: action.x, y: action.y };
+        if (state.selectedShapes.includes(shape.id)) {
+          return { ...shape, x: action.x || shape.x, y: action.y || shape.y };
         }
 
         return shape;
