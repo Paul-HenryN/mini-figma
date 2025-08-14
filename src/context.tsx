@@ -19,7 +19,7 @@ type AppState = {
   currentTool: Tool;
   scale: number;
   shapes: ShapeData[];
-  pendingShape: ShapeData | null;
+  pendingShapeId: ShapeData["id"] | null;
   selectedShapes: ShapeData["id"][];
   isPanning: boolean;
 };
@@ -43,7 +43,7 @@ type AppAction =
   | { type: "DISABLE_PANNING" }
   | { type: "INPUT_PENDING_TEXT"; text: string }
   | {
-      type: "SELECT_SHAPE";
+      type: "TOGGLE_SELECT";
       shapeId: ShapeData["id"];
       multiSelectEnabled?: boolean;
     }
@@ -69,6 +69,10 @@ type AppAction =
       type: "UPDATE_SHAPE";
       shapeId: ShapeData["id"];
       data: Record<string, number | string>;
+    }
+  | {
+      type: "DELETE";
+      shapeId?: ShapeData["id"];
     };
 
 type AppContextType = {
@@ -76,11 +80,11 @@ type AppContextType = {
   dispatch: ActionDispatch<[action: AppAction]>;
 };
 
-const DEFAULT_STATE = {
+const DEFAULT_STATE: AppState = {
   currentTool: APP_TOOLS.MOVE,
   scale: 1,
   shapes: [],
-  pendingShape: null,
+  pendingShapeId: null,
   selectedShapes: [],
   isPanning: false,
 };
@@ -178,72 +182,39 @@ function reducer(state: AppState, action: AppAction): AppState {
 
     return {
       ...state,
-      pendingShape: newShape,
+      pendingShapeId: newShape ? newShape.id : null,
+      shapes: newShape ? [...state.shapes, newShape] : state.shapes,
       selectedShapes: newShape ? [id] : state.selectedShapes,
     };
   }
 
   if (action.type === "SCALE_PENDING_SHAPE") {
-    if (!state.pendingShape) return state;
+    if (!state.pendingShapeId) return state;
 
     const { dx, dy } = action;
 
-    let scaledPendingShape = null;
+    const updatedShapes = state.shapes.map((shape) => {
+      if (shape.id === state.pendingShapeId) {
+        switch (shape.type) {
+          case "rectangle":
+            return { ...shape, width: dx, height: dy };
+          case "ellipse":
+            return { ...shape, width: Math.abs(dx), height: Math.abs(dy) };
+          default:
+            return shape;
+        }
+      }
 
-    switch (state.pendingShape.type) {
-      case "rectangle":
-        scaledPendingShape = { ...state.pendingShape, width: dx, height: dy };
-        break;
-      case "ellipse":
-        scaledPendingShape = {
-          ...state.pendingShape,
-          width: Math.abs(dx),
-          height: Math.abs(dy),
-          offsetX: -dx / 2,
-          offsetY: -dy / 2,
-        };
-        break;
-      default:
-        scaledPendingShape = state.pendingShape;
-        break;
-    }
+      return shape;
+    });
 
-    return { ...state, pendingShape: scaledPendingShape };
+    return { ...state, shapes: updatedShapes };
   }
 
   if (action.type === "CONFIRM_PENDING_SHAPE") {
-    if (!state.pendingShape) return state;
-
-    // Generate a new ID for the confirmed shape
-    const id = crypto.randomUUID();
-
-    if (state.pendingShape.type === "text") {
-      const text = state.pendingShape.text.trim();
-
-      if (text) {
-        return {
-          ...state,
-          pendingShape: null,
-          shapes: [
-            ...state.shapes,
-            { ...state.pendingShape, text, id, name: text },
-          ],
-          selectedShapes: [id],
-          currentTool: APP_TOOLS.MOVE,
-        };
-      }
-
-      return {
-        ...state,
-        pendingShape: null,
-      };
-    }
-
     return {
       ...state,
-      pendingShape: null,
-      shapes: [...state.shapes, { ...state.pendingShape, id }],
-      selectedShapes: [id],
+      pendingShapeId: null,
       currentTool: APP_TOOLS.MOVE,
     };
   }
@@ -256,22 +227,17 @@ function reducer(state: AppState, action: AppAction): AppState {
     return { ...state, isPanning: false };
   }
 
-  if (action.type === "INPUT_PENDING_TEXT") {
-    if (state.pendingShape?.type !== "text") return state;
-
-    const updatedShape = {
-      ...state.pendingShape,
-      text: action.text,
-      name: action.text,
-    };
-
-    return { ...state, pendingShape: updatedShape };
-  }
-
-  if (action.type === "SELECT_SHAPE") {
+  if (action.type === "TOGGLE_SELECT") {
     const { multiSelectEnabled, shapeId } = action;
 
     if (multiSelectEnabled) {
+      if (state.selectedShapes.includes(shapeId)) {
+        return {
+          ...state,
+          selectedShapes: state.selectedShapes.filter((id) => id !== shapeId),
+        };
+      }
+
       return { ...state, selectedShapes: [...state.selectedShapes, shapeId] };
     }
 
@@ -372,6 +338,18 @@ function reducer(state: AppState, action: AppAction): AppState {
 
         return shape;
       }),
+    };
+  }
+
+  if (action.type === "DELETE") {
+    return {
+      ...state,
+      shapes: state.shapes.filter((shape) =>
+        action.shapeId
+          ? shape.id !== action.shapeId
+          : !state.selectedShapes.includes(shape.id)
+      ),
+      selectedShapes: [],
     };
   }
 

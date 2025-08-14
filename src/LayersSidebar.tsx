@@ -1,6 +1,7 @@
 import {
   CircleIcon,
   SquareIcon,
+  Trash2Icon,
   TypeIcon,
   type LucideIcon,
 } from "lucide-react";
@@ -16,7 +17,7 @@ import type { ShapeData } from "./types";
 
 export function LayersSidebar() {
   const {
-    state: { shapes, selectedShapes, pendingShape },
+    state: { shapes, selectedShapes },
     dispatch,
   } = useAppContext();
 
@@ -27,15 +28,6 @@ export function LayersSidebar() {
           <SidebarGroupTitle>Layers</SidebarGroupTitle>
 
           <ul className="flex flex-col mt-2 gap-2 ml-2">
-            {pendingShape && (
-              <li>
-                <LayerButton
-                  shape={pendingShape}
-                  active={selectedShapes.includes(pendingShape.id)}
-                />
-              </li>
-            )}
-
             {shapes.toReversed().map((shape) => (
               <li className="text-xs">
                 <LayerButton
@@ -43,10 +35,13 @@ export function LayersSidebar() {
                   active={selectedShapes.includes(shape.id)}
                   onClick={(e) =>
                     dispatch({
-                      type: "SELECT_SHAPE",
+                      type: "TOGGLE_SELECT",
                       shapeId: shape.id,
                       multiSelectEnabled: e.shiftKey,
                     })
+                  }
+                  onDelete={() =>
+                    dispatch({ type: "DELETE", shapeId: shape.id })
                   }
                 />
               </li>
@@ -62,10 +57,12 @@ function LayerButton({
   shape,
   active = false,
   onClick = () => {},
+  onDelete = () => {},
 }: {
   shape: ShapeData;
   active?: boolean;
   onClick?: (e: React.MouseEvent<HTMLButtonElement>) => void;
+  onDelete?: () => void;
 }) {
   const shapeIcons: Record<ShapeData["type"], LucideIcon> = {
     rectangle: SquareIcon,
@@ -76,14 +73,24 @@ function LayerButton({
   const Icon = shapeIcons[shape.type];
 
   return (
-    <Button
-      variant={active ? "default" : "ghost"}
-      size="sm"
-      className="text-xs w-full justify-start transition-all"
-      onClick={onClick}
-    >
-      <Icon className="mr-1" />
-      {shape.name}
-    </Button>
+    <div className="relative group/layer">
+      <Button
+        variant={active ? "default" : "ghost"}
+        size="sm"
+        className="text-xs w-full justify-start transition-all"
+        onClick={onClick}
+      >
+        <Icon className="mr-1" />
+        {shape.name}
+      </Button>
+
+      <Button
+        variant="ghost"
+        className="absolute right-2 top-1/2 -translate-y-1/2 size-6 opacity-0 group-hover/layer:opacity-100"
+        onClick={onDelete}
+      >
+        <Trash2Icon />
+      </Button>
+    </div>
   );
 }

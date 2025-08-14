@@ -3,14 +3,16 @@ import type { ShapeData } from "./types";
 import { cx } from "class-variance-authority";
 import { useRef, useEffect } from "react";
 
-export function PendingTextArea({
+export function PendingTextInput({
   textShape,
   stage,
   onTextChange,
+  OnBlur,
 }: {
   textShape: Extract<ShapeData, { type: "text" }>;
   stage: Konva.Stage;
-  onTextChange: (value: string) => void;
+  onTextChange?: (value: string) => void;
+  OnBlur?: () => void;
 }) {
   const { x, y } = stage
     .getAbsoluteTransform()
@@ -39,7 +41,7 @@ export function PendingTextArea({
         "resize-none overflow-hidden outline-0 border-none",
         textShape.text && "outline-1 outline-blue-600"
       )}
-      onChange={(e) => onTextChange(e.target.value)}
+      onChange={(e) => onTextChange?.(e.target.value)}
       style={{
         position: "absolute",
         left: x,
@@ -53,6 +55,7 @@ export function PendingTextArea({
         fontStyle: textShape.fontStyle,
         color: textShape.fill,
       }}
+      onBlur={OnBlur}
     />
   );
 }

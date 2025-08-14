@@ -10,6 +10,7 @@ export function Shape({
   onDragMove,
   draggable = false,
   stopPropagation = false,
+  isPending = false,
 }: {
   data: ShapeData;
   onClick?: (e: KonvaEventObject<MouseEvent>) => void;
@@ -17,6 +18,7 @@ export function Shape({
   onDragMove?: (e: KonvaEventObject<DragEvent>) => void;
   draggable?: boolean;
   stopPropagation?: boolean;
+  isPending?: boolean;
 }) {
   const shapeRef = useRef(null);
 
@@ -51,7 +53,7 @@ export function Shape({
     );
   }
   if (data.type === "text") {
-    return <Text {...data} {...otherProps} />;
+    return !isPending ? <Text {...data} {...otherProps} /> : null;
   }
 
   return null;

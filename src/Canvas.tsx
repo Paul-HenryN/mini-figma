@@ -4,15 +4,15 @@ import { useAppContext } from "./context";
 import type Konva from "konva";
 import { cx } from "class-variance-authority";
 import { Shape } from "./Shape";
-import { PendingTextArea } from "./PendingTextArea";
 import { ZOOM_FACTOR } from "./const";
+import { PendingTextInput } from "./PendingTextInput";
 
 export function Canvas() {
   const {
     state: {
       shapes,
       selectedShapes,
-      pendingShape,
+      pendingShapeId,
       scale,
       isPanning,
       currentTool,
@@ -23,14 +23,10 @@ export function Canvas() {
   const stageRef = useRef<Konva.Stage>(null);
   const transformerRef = useRef<Konva.Transformer>(null);
   const layerRef = useRef<Konva.Layer>(null);
+  const pendingShape = shapes.find((shape) => shape.id === pendingShapeId);
 
   const handleMouseDown = () => {
     if (!stageRef.current) return;
-
-    if (pendingShape?.type === "text") {
-      dispatch({ type: "CONFIRM_PENDING_SHAPE" });
-      return;
-    }
 
     const pointerPos = stageRef.current.getPointerPosition();
     if (!pointerPos) return;
@@ -38,7 +34,7 @@ export function Canvas() {
     const transform = stageRef.current.getAbsoluteTransform().copy().invert();
     const pos = transform.point(pointerPos);
 
-    if (!isPanning) {
+    if (!isPanning && !pendingShape) {
       dispatch({ type: "UNSELECT_ALL" });
       dispatch({
         type: "START_CREATING_SHAPE",
@@ -60,12 +56,7 @@ export function Canvas() {
     const dx = pos.x - pendingShape.x;
     const dy = pos.y - pendingShape.y;
 
-    dispatch({ type: "SCALE_PENDING_SHAPE", dx, dy });
-  };
-  const handleMouseUp = () => {
-    if (pendingShape && pendingShape?.type !== "text") {
-      dispatch({ type: "CONFIRM_PENDING_SHAPE" });
-    }
+    dispatch({ type: "RESIZE", width: dx, height: dy });
   };
   const handleWheel = (e: Konva.KonvaEventObject<WheelEvent>) => {
     e.evt.preventDefault();
@@ -134,6 +125,11 @@ export function Canvas() {
       data: { x: updatedX, y: updatedY },
     });
   };
+  const handleMouseUp = () => {
+    if (pendingShape && pendingShape.type !== "text") {
+      dispatch({ type: "CONFIRM_PENDING_SHAPE" });
+    }
+  };
 
   useEffect(() => {
     if (!stageRef.current) return;
@@ -160,7 +156,11 @@ export function Canvas() {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === " " && !pendingShape) dispatch({ type: "ENABLE_PANNING" });
+      if (pendingShapeId) return;
+
+      if (e.key === " ") dispatch({ type: "ENABLE_PANNING" });
+
+      if (e.key === "Backspace") dispatch({ type: "DELETE" });
     };
     const handleKeyUp = (e: KeyboardEvent) => {
       if (e.key === " ") dispatch({ type: "DISABLE_PANNING" });
@@ -172,7 +172,7 @@ export function Canvas() {
       window.removeEventListener("keydown", handleKeyDown);
       window.removeEventListener("keyup", handleKeyUp);
     };
-  }, [pendingShape]);
+  }, [pendingShapeId]);
 
   useEffect(() => {
     if (!layerRef.current || !transformerRef.current) return;
@@ -187,23 +187,13 @@ export function Canvas() {
 
   return (
     <>
-      {pendingShape?.type === "text" && stageRef.current && (
-        <PendingTextArea
-          textShape={pendingShape}
-          stage={stageRef.current}
-          onTextChange={(text) =>
-            dispatch({ type: "INPUT_PENDING_TEXT", text })
-          }
-        />
-      )}
-
       <Stage
         width={window.innerWidth}
         height={window.innerHeight}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
         onWheel={handleWheel}
+        onMouseUp={handleMouseUp}
         draggable={isPanning}
         ref={stageRef}
         className={cx(isPanning && "cursor-grab")}
@@ -213,10 +203,11 @@ export function Canvas() {
             <Shape
               key={shape.id}
               data={shape}
+              isPending={pendingShapeId === shape.id}
               onClick={(e) => {
                 if (currentTool.id === "move") {
                   dispatch({
-                    type: "SELECT_SHAPE",
+                    type: "TOGGLE_SELECT",
                     shapeId: shape.id,
                     multiSelectEnabled: e.evt.shiftKey,
                   });
@@ -231,16 +222,27 @@ export function Canvas() {
             />
           ))}
 
-          {pendingShape && pendingShape?.type !== "text" && (
-            <Shape data={pendingShape} />
-          )}
-
           <Transformer
             ref={transformerRef}
             onMouseDown={(e) => (e.cancelBubble = true)}
           />
         </Layer>
       </Stage>
+
+      {pendingShape && pendingShape?.type === "text" && stageRef.current && (
+        <PendingTextInput
+          textShape={pendingShape}
+          stage={stageRef.current}
+          onTextChange={(text) =>
+            dispatch({
+              type: "UPDATE_SHAPE",
+              shapeId: pendingShape.id,
+              data: { text, name: text },
+            })
+          }
+          OnBlur={() => dispatch({ type: "CONFIRM_PENDING_SHAPE" })}
+        />
+      )}
     </>
   );
 }
