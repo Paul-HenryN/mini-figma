@@ -35,7 +35,6 @@ export function Canvas() {
     const pos = transform.point(pointerPos);
 
     if (!isPanning && !pendingShape) {
-      dispatch({ type: "UNSELECT_ALL" });
       dispatch({
         type: "START_CREATING_SHAPE",
         x: pos.x,

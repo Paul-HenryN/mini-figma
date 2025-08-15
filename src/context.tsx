@@ -216,6 +216,7 @@ function reducer(state: AppState, action: AppAction): AppState {
       ...state,
       pendingShapeId: null,
       currentTool: APP_TOOLS.MOVE,
+      selectedShapes: state.pendingShapeId ? [state.pendingShapeId] : [],
     };
   }
 
