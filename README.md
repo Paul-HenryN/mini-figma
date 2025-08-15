@@ -1,69 +1,85 @@
-# React + TypeScript + Vite
+# Mini Figma - frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A collaborative, real-time design tool frontend inspired by Figma
 
-Currently, two official plugins are available:
+![Figma Clone - frontend](/screenshots/ui.png)
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+---
 
-## Expanding the ESLint configuration
+## Features
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+- **Canvas-based drawing** with [Konva.js](https://konvajs.org/) and [`react-konva`](https://konvajs.org/docs/react/index.html)
+- **Interactive shapes**: move, resize, and style in real-time
+- **Modern UI** built with [Shadcn UI](https://ui.shadcn.com/) and [TailwindCSS](https://tailwindcss.com/)
+- **Fast build & HMR** using [Vite](https://vitejs.dev/)
+- **Real-time collaboration** powered by [Yjs](https://yjs.dev/) *(integration WIP)*
 
-```js
-export default tseslint.config([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+---
 
-      // Remove tseslint.configs.recommended and replace with this
-      ...tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      ...tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      ...tseslint.configs.stylisticTypeChecked,
+## Tech Stack
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+- **React** – UI framework
+- **Vite** – Fast bundler & dev server
+- **TypeScript** – Type safety
+- **Konva.js + react-konva** – 2D canvas rendering & interactivity
+- **TailwindCSS** – Utility-first styling
+- **Shadcn UI** – Prebuilt accessible components
+
+---
+
+## Installation
+
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/your-username/figma-clone-frontend.git
+   cd figma-clone-frontend
+   ```
+
+2. **Install dependencies**
+   ```bash
+   npm install
+   # or
+   yarn install
+   ```
+
+3. **Start development server**
+   ```bash
+   npm run dev
+   ```
+
+4. **Build for production**
+   ```bash
+   npm run build
+   ```
+
+5. **Preview production build**
+   ```bash
+   npm run preview
+   ```
+
+---
+
+## Project Structure
+
+```
+src/
+├── components/      # Reusable UI components (Shadcn UI + custom)
+    ├── ui/          # Reusable UI components (Shadcn UI)
+├── hooks/           # Custom React hooks
+├── App.tsx          # Main application component
+├── const.tsx        # Global constants
+├── context.tsx      # React context for global state
+├── main.tsx         # Entry point
+└── types.ts         # Shared types
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+---
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+## Configuration
 
-export default tseslint.config([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+- **TailwindCSS**: configured in `tailwind.config.js`
+- **Shadcn UI**: generated components under `src/components/ui`
+- **Vite**: main config in `vite.config.ts`
+
+
+**Status:** 🚧 In Development
