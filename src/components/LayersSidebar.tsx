@@ -5,15 +5,15 @@ import {
   TypeIcon,
   type LucideIcon,
 } from "lucide-react";
-import { Button } from "./components/ui/button";
+import { Button } from "./ui/button";
 import {
   Sidebar,
   SidebarContent,
   SidebarGroup,
   SidebarGroupTitle,
-} from "./components/ui/sidebar";
-import { useAppContext } from "./context";
-import type { ShapeData } from "./types";
+} from "./ui/sidebar";
+import { useAppContext } from "@/context";
+import type { ShapeData } from "@/types";
 
 export function LayersSidebar() {
   const {

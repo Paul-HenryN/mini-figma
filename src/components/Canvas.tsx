@@ -1,10 +1,10 @@
 import { useEffect, useRef } from "react";
 import { Stage, Layer, Transformer } from "react-konva";
-import { useAppContext } from "./context";
+import { useAppContext } from "../context";
 import type Konva from "konva";
 import { cx } from "class-variance-authority";
+import { ZOOM_FACTOR } from "../const";
 import { Shape } from "./Shape";
-import { ZOOM_FACTOR } from "./const";
 import { PendingTextInput } from "./PendingTextInput";
 
 export function Canvas() {

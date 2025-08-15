@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { Input } from "./components/ui/input";
-import { cn } from "./lib/utils";
+import { Input } from "./ui/input";
+import { cn } from "@/lib/utils";
 
 export function NumberInput({
   value,

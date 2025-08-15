@@ -1,12 +1,8 @@
-import {
-  Popover,
-  PopoverTrigger,
-  PopoverContent,
-} from "./components/ui/popover";
+import { Popover, PopoverTrigger, PopoverContent } from "./ui/popover";
 import { HexAlphaColorPicker } from "react-colorful";
-import { Input } from "./components/ui/input";
+import { Input } from "./ui/input";
 import { useEffect, useState, type FormEvent } from "react";
-import { DEFAULT_COLOR } from "./const";
+import { DEFAULT_COLOR } from "../const";
 
 export function ColorInput({
   color = DEFAULT_COLOR,

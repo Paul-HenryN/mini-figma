@@ -1,7 +1,7 @@
-import { Button } from "./components/ui/button";
-import { APP_TOOLS } from "./const";
-import { useAppContext } from "./context";
-import { cn } from "./lib/utils";
+import { APP_TOOLS } from "@/const";
+import { useAppContext } from "@/context";
+import { cn } from "@/lib/utils";
+import type { Tool } from "@/types";
 import {
   CircleIcon,
   MoveIcon,
@@ -9,7 +9,7 @@ import {
   TypeIcon,
   type LucideIcon,
 } from "lucide-react";
-import type { Tool } from "./types";
+import { Button } from "./ui/button";
 
 const toolIcons: Record<Tool["id"], LucideIcon> = {
   move: MoveIcon,

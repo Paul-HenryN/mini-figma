@@ -6,7 +6,7 @@ import {
   MenubarMenu,
   MenubarShortcut,
   MenubarTrigger,
-} from "./components/ui/menubar";
+} from "./ui/menubar";
 import {
   Sidebar,
   SidebarContent,
@@ -17,16 +17,16 @@ import {
   SidebarHeader,
   SidebarSeparator,
   SidebarSubGroupTitle,
-} from "./components/ui/sidebar";
-import { useAppContext } from "./context";
+} from "./ui/sidebar";
+import { useAppContext } from "../context";
 import {
   DEFAULT_COLOR,
   DEFAULT_STROKE_COLOR,
   DEFAULT_STROKE_WIDTH,
   ZOOM_FACTOR,
-} from "./const";
-import { Button } from "./components/ui/button";
-import type { ShapeData } from "./types";
+} from "../const";
+import { Button } from "./ui/button";
+import type { ShapeData } from "../types";
 import { ColorInput } from "./ColorInput";
 import { NumberInput } from "./NumberInput";
 
