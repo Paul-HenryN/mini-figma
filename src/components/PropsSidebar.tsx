@@ -73,7 +73,7 @@ const ZOOM_OPTIONS: {
 
 export function PropsSidebar() {
   const {
-    state: { scale, selectedShapes, shapes, pendingShape },
+    state: { scale, selectedShapes, shapes, pendingShapeId },
     dispatch,
   } = useAppContext();
 
@@ -98,6 +98,8 @@ export function PropsSidebar() {
 
     return `${selectedShapesData.length} selected`;
   };
+
+  const pendingShape = shapes.find((shape) => shape.id === pendingShapeId);
 
   return (
     <Sidebar side="right">
@@ -161,9 +163,11 @@ export function PropsSidebar() {
 
 function FillPropsGroup() {
   const {
-    state: { shapes, selectedShapes, pendingShape },
+    state: { shapes, selectedShapes, pendingShapeId },
     dispatch,
   } = useAppContext();
+
+  const pendingShape = shapes.find((shape) => shape.id === pendingShapeId);
 
   const getCurrentFill = () => {
     if (pendingShape) {
@@ -241,9 +245,11 @@ function FillPropsGroup() {
 
 function StrokePropsGroup() {
   const {
-    state: { shapes, selectedShapes, pendingShape },
+    state: { shapes, selectedShapes, pendingShapeId },
     dispatch,
   } = useAppContext();
+
+  const pendingShape = shapes.find((shape) => shape.id === pendingShapeId);
 
   const getCurrentStroke = () => {
     if (pendingShape && pendingShape.stroke) {
@@ -367,9 +373,11 @@ function StrokePropsGroup() {
 
 function LayoutPropsGroup() {
   const {
-    state: { shapes, selectedShapes, pendingShape },
+    state: { shapes, selectedShapes, pendingShapeId },
     dispatch,
   } = useAppContext();
+
+  const pendingShape = shapes.find((shape) => shape.id === pendingShapeId);
 
   const getCurrentWidth = () => {
     if (pendingShape) {
@@ -469,9 +477,11 @@ function LayoutPropsGroup() {
 
 function PositionPropsGroup() {
   const {
-    state: { shapes, selectedShapes, pendingShape },
+    state: { shapes, selectedShapes, pendingShapeId },
     dispatch,
   } = useAppContext();
+
+  const pendingShape = shapes.find((shape) => shape.id === pendingShapeId);
 
   const getCurrentX = () => {
     if (pendingShape) {
