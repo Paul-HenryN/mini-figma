@@ -1,7 +1,7 @@
 import type Konva from "konva";
-import type { ShapeData } from "./types";
 import { cx } from "class-variance-authority";
 import { useRef, useEffect } from "react";
+import type { ShapeData } from "@/types";
 
 export function PendingTextInput({
   textShape,

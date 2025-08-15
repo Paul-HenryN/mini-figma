@@ -1,7 +1,7 @@
 import type { KonvaEventObject } from "konva/lib/Node";
 import { useRef } from "react";
 import { Rect, Ellipse, Text } from "react-konva";
-import type { ShapeData } from "./types";
+import type { ShapeData } from "@/types";
 
 export function Shape({
   data,
