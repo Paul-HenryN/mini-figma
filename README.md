@@ -31,20 +31,18 @@ A collaborative, real-time design tool frontend inspired by Figma
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/your-username/figma-clone-frontend.git
-   cd figma-clone-frontend
+   git clone https://github.com/Paul-HenryN/mini-figma.git
+   cd mini-figma
    ```
 
 2. **Install dependencies**
    ```bash
-   npm install
-   # or
-   yarn install
+   pnpm install
    ```
 
 3. **Start development server**
    ```bash
-   npm run dev
+   pnpm run dev
    ```
 
 4. **Build for production**
@@ -54,7 +52,7 @@ A collaborative, real-time design tool frontend inspired by Figma
 
 5. **Preview production build**
    ```bash
-   npm run preview
+   pnpm preview
    ```
 
 ---
