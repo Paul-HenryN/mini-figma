@@ -1,11 +1,15 @@
 import React, {
   createContext,
   useContext,
+  useEffect,
   useReducer,
+  useRef,
   type ActionDispatch,
 } from "react";
 import type { ShapeData, Tool } from "./types";
 import { APP_TOOLS, DEFAULT_COLOR, MAX_ZOOM, MIN_ZOOM } from "./const";
+import * as Y from "yjs";
+import { WebsocketProvider } from "y-websocket";
 
 const fill = DEFAULT_COLOR;
 const fontSize = 24;
@@ -73,7 +77,8 @@ type AppAction =
   | {
       type: "DELETE";
       shapeId?: ShapeData["id"];
-    };
+    }
+  | { type: "SYNC_SHAPES"; shapes: ShapeData[] };
 
 type AppContextType = {
   state: AppState;
@@ -100,6 +105,56 @@ export function AppContextProvider({
   children: React.ReactNode;
 }) {
   const [state, dispatch] = useReducer(reducer, DEFAULT_STATE);
+  const yDocRef = useRef<Y.Doc>(new Y.Doc());
+  const wsProviderRef = useRef<WebsocketProvider | null>(null);
+
+  useEffect(() => {
+    wsProviderRef.current = new WebsocketProvider(
+      "ws://localhost:1234",
+      "my-room",
+      yDocRef.current
+    );
+
+    wsProviderRef.current.on("status", (event) => {
+      console.log("Websocket status:", event.status);
+    });
+
+    const syncedShapes = yDocRef.current.getArray<ShapeData>("shapes");
+
+    const observer = (e: Y.YArrayEvent<ShapeData>) => {
+      console.log(e.target.toArray());
+      const hasChanges =
+        JSON.stringify(e.target.toArray()) !== JSON.stringify(state.shapes);
+
+      if (hasChanges) {
+        dispatch({ type: "SYNC_SHAPES", shapes: e.target.toArray() });
+      }
+    };
+
+    syncedShapes.observe(observer);
+
+    return () => {
+      if (wsProviderRef.current && wsProviderRef.current.wsconnected) {
+        wsProviderRef.current.destroy();
+      }
+
+      syncedShapes.unobserve(observer);
+      yDocRef.current.destroy();
+    };
+  }, []);
+
+  useEffect(() => {
+    const syncedShapes = yDocRef.current.getArray<ShapeData>("shapes");
+    const hasChanges =
+      JSON.stringify(syncedShapes.toArray()) !== JSON.stringify(state.shapes);
+
+    if (hasChanges) {
+      yDocRef.current.transact(() => {
+        syncedShapes.delete(0, syncedShapes.length);
+        syncedShapes.push(state.shapes);
+      });
+    }
+  }, [state.shapes]);
 
   return (
     <AppContext.Provider
@@ -351,6 +406,13 @@ function reducer(state: AppState, action: AppAction): AppState {
           : !state.selectedShapes.includes(shape.id)
       ),
       selectedShapes: [],
+    };
+  }
+
+  if (action.type === "SYNC_SHAPES") {
+    return {
+      ...state,
+      shapes: action.shapes,
     };
   }
 
