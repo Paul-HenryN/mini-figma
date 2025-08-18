@@ -20,6 +20,7 @@ const letterSpacing = 0;
 const textDecoration = "";
 
 type AppState = {
+  roomId?: string;
   currentTool: Tool;
   scale: number;
   shapes: ShapeData[];
@@ -101,17 +102,21 @@ const AppContext = createContext<AppContextType>({
 
 export function AppContextProvider({
   children,
+  roomId,
 }: {
   children: React.ReactNode;
+  roomId: string;
 }) {
   const [state, dispatch] = useReducer(reducer, DEFAULT_STATE);
   const yDocRef = useRef<Y.Doc>(new Y.Doc());
   const wsProviderRef = useRef<WebsocketProvider | null>(null);
 
   useEffect(() => {
+    if (!roomId) return;
+
     wsProviderRef.current = new WebsocketProvider(
       "ws://localhost:1234",
-      "my-room",
+      roomId,
       yDocRef.current
     );
 
@@ -159,7 +164,7 @@ export function AppContextProvider({
   return (
     <AppContext.Provider
       value={{
-        state,
+        state: { ...state, roomId },
         dispatch,
       }}
     >
