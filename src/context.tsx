@@ -1,23 +1,17 @@
 import React, {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useReducer,
-  useRef,
   type ActionDispatch,
 } from "react";
 import type { ShapeData, Tool } from "./types";
-import { APP_TOOLS, DEFAULT_COLOR, MAX_ZOOM, MIN_ZOOM } from "./const";
-import * as Y from "yjs";
+import { APP_TOOLS, MAX_ZOOM, MIN_ZOOM } from "./const";
 import { WebsocketProvider } from "y-websocket";
-
-const fill = DEFAULT_COLOR;
-const fontSize = 24;
-const fontFamily = "Arial";
-const fontStyle = "normal";
-const lineHeight = 1;
-const letterSpacing = 0;
-const textDecoration = "";
+import { useY } from "react-yjs";
+import { deepEqual } from "fast-equals";
+import * as Y from "yjs";
 
 type AppState = {
   roomId?: string;
@@ -35,13 +29,7 @@ type AppAction =
     }
   | {
       type: "START_CREATING_SHAPE";
-      x: number;
-      y: number;
-    }
-  | {
-      type: "SCALE_PENDING_SHAPE";
-      dx: number;
-      dy: number;
+      newShape: ShapeData;
     }
   | { type: "CONFIRM_PENDING_SHAPE" }
   | { type: "ENABLE_PANNING" }
@@ -100,6 +88,9 @@ const AppContext = createContext<AppContextType>({
   dispatch: () => {},
 });
 
+const yDoc = new Y.Doc();
+const yShapes = yDoc.getArray<ShapeData>("shapes");
+
 export function AppContextProvider({
   children,
   roomId,
@@ -107,59 +98,88 @@ export function AppContextProvider({
   children: React.ReactNode;
   roomId: string;
 }) {
-  const [state, dispatch] = useReducer(reducer, DEFAULT_STATE);
-  const yDocRef = useRef<Y.Doc>(new Y.Doc());
-  const wsProviderRef = useRef<WebsocketProvider | null>(null);
+  const [state, dispatchBase] = useReducer(reducer, DEFAULT_STATE);
+  const shapes = useY(yShapes);
+
+  const dispatch = useCallback(
+    (action: AppAction) => {
+      if (action.type === "START_CREATING_SHAPE") {
+        yShapes.push([action.newShape]);
+      } else if (action.type === "UPDATE_SHAPE") {
+        yShapes.forEach((shape, i) => {
+          if (shape.id === action.shapeId) {
+            yDoc.transact(() => {
+              yShapes.delete(i);
+              yShapes.insert(i, [{ ...shape, ...action.data }]);
+            });
+          }
+        });
+      } else if (action.type === "DELETE") {
+        yShapes.forEach((shape, i) => {
+          if (shape.id === action.shapeId) {
+            yShapes.delete(i);
+          }
+        });
+      } else if (action.type === "CHANGE_COLOR") {
+        yDoc.transact(() => {
+          yShapes.forEach((shape, i) => {
+            if (state.selectedShapes.includes(shape.id)) {
+              yShapes.delete(i);
+              yShapes.insert(i, [{ ...shape, fill: action.color }]);
+            }
+          });
+        });
+      } else if (action.type === "CHANGE_STROKE") {
+        yDoc.transact(() => {
+          yShapes.forEach((shape, i) => {
+            if (state.selectedShapes.includes(shape.id)) {
+              yShapes.delete(i);
+              yShapes.insert(i, [
+                { ...shape, stroke: action.color, strokeWidth: action.width },
+              ]);
+            }
+          });
+        });
+      } else if (action.type === "MOVE") {
+        yDoc.transact(() => {
+          yShapes.forEach((shape, i) => {
+            if (state.selectedShapes.includes(shape.id)) {
+              yShapes.delete(i);
+              yShapes.insert(i, [
+                { ...shape, x: action.x || shape.x, y: action.y || shape.y },
+              ]);
+            }
+          });
+        });
+      }
+
+      dispatchBase(action);
+    },
+    [state, dispatchBase]
+  );
 
   useEffect(() => {
     if (!roomId) return;
 
-    wsProviderRef.current = new WebsocketProvider(
+    const wsProvider = new WebsocketProvider(
       "ws://localhost:1234",
       roomId,
-      yDocRef.current
+      yDoc
     );
-
-    wsProviderRef.current.on("status", (event) => {
+    wsProvider.on("status", (event) => {
       console.log("Websocket status:", event.status);
     });
 
-    const syncedShapes = yDocRef.current.getArray<ShapeData>("shapes");
-
-    const observer = (e: Y.YArrayEvent<ShapeData>) => {
-      console.log(e.target.toArray());
-      const hasChanges =
-        JSON.stringify(e.target.toArray()) !== JSON.stringify(state.shapes);
-
-      if (hasChanges) {
-        dispatch({ type: "SYNC_SHAPES", shapes: e.target.toArray() });
-      }
-    };
-
-    syncedShapes.observe(observer);
-
     return () => {
-      if (wsProviderRef.current && wsProviderRef.current.wsconnected) {
-        wsProviderRef.current.destroy();
-      }
-
-      syncedShapes.unobserve(observer);
-      yDocRef.current.destroy();
+      wsProvider.destroy();
     };
-  }, []);
+  }, [roomId]);
 
   useEffect(() => {
-    const syncedShapes = yDocRef.current.getArray<ShapeData>("shapes");
-    const hasChanges =
-      JSON.stringify(syncedShapes.toArray()) !== JSON.stringify(state.shapes);
-
-    if (hasChanges) {
-      yDocRef.current.transact(() => {
-        syncedShapes.delete(0, syncedShapes.length);
-        syncedShapes.push(state.shapes);
-      });
+    if (!deepEqual(shapes, state.shapes)) {
+      dispatch({ type: "SYNC_SHAPES", shapes });
     }
-  }, [state.shapes]);
+  }, [shapes]);
 
   return (
     <AppContext.Provider
@@ -183,92 +203,12 @@ function reducer(state: AppState, action: AppAction): AppState {
   }
 
   if (action.type === "START_CREATING_SHAPE") {
-    const { x, y } = action;
-    let newShape: ShapeData | null = null;
-
-    const id = crypto.randomUUID();
-
-    switch (state.currentTool.id) {
-      case "rectangle":
-        const rectangleIndex =
-          state.shapes.filter((shape) => shape.type === "rectangle").length + 1;
-
-        newShape = {
-          type: "rectangle",
-          id,
-          name: `Rectangle ${rectangleIndex}`,
-          x,
-          y,
-          fill,
-          width: 0,
-          height: 0,
-        };
-        break;
-      case "ellipse":
-        const ellipseIndex =
-          state.shapes.filter((shape) => shape.type === "ellipse").length + 1;
-
-        newShape = {
-          type: "ellipse",
-          id,
-          name: `Ellipse ${ellipseIndex}`,
-          x,
-          y,
-          fill,
-          width: 0,
-          height: 0,
-        };
-        break;
-      case "text":
-        newShape = {
-          type: "text",
-          id,
-          name: "",
-          x,
-          y,
-          fill,
-          text: "",
-          fontSize,
-          fontFamily,
-          fontStyle,
-          letterSpacing,
-          lineHeight,
-          textDecoration,
-        };
-        break;
-      default:
-        break;
-    }
-
     return {
       ...state,
-      pendingShapeId: newShape ? newShape.id : null,
-      shapes: newShape ? [...state.shapes, newShape] : state.shapes,
-      selectedShapes: newShape ? [id] : state.selectedShapes,
+      pendingShapeId: action.newShape.id,
+      shapes: [...state.shapes, action.newShape],
+      selectedShapes: [action.newShape.id],
     };
-  }
-
-  if (action.type === "SCALE_PENDING_SHAPE") {
-    if (!state.pendingShapeId) return state;
-
-    const { dx, dy } = action;
-
-    const updatedShapes = state.shapes.map((shape) => {
-      if (shape.id === state.pendingShapeId) {
-        switch (shape.type) {
-          case "rectangle":
-            return { ...shape, width: dx, height: dy };
-          case "ellipse":
-            return { ...shape, width: Math.abs(dx), height: Math.abs(dy) };
-          default:
-            return shape;
-        }
-      }
-
-      return shape;
-    });
-
-    return { ...state, shapes: updatedShapes };
   }
 
   if (action.type === "CONFIRM_PENDING_SHAPE") {
@@ -330,8 +270,6 @@ function reducer(state: AppState, action: AppAction): AppState {
   }
 
   if (action.type === "CHANGE_COLOR") {
-    if (state.selectedShapes.length === 0) return state;
-
     return {
       ...state,
       shapes: state.shapes.map((shape) => {
@@ -372,36 +310,6 @@ function reducer(state: AppState, action: AppAction): AppState {
     };
   }
 
-  if (action.type === "RESIZE") {
-    return {
-      ...state,
-      shapes: state.shapes.map((shape) => {
-        if (state.selectedShapes.includes(shape.id)) {
-          switch (shape.type) {
-            case "rectangle":
-              return {
-                ...shape,
-                width: action.width || shape.width,
-                height: action.height || shape.height,
-              };
-            case "ellipse":
-              return {
-                ...shape,
-                width: action.width || shape.width,
-                height: action.height || shape.height,
-                offsetX: action.width ? -action.width / 2 : shape.offsetX,
-                offsetY: action.height ? -action.height / 2 : shape.offsetY,
-              };
-            default:
-              return shape;
-          }
-        }
-
-        return shape;
-      }),
-    };
-  }
-
   if (action.type === "DELETE") {
     return {
       ...state,
@@ -418,6 +326,23 @@ function reducer(state: AppState, action: AppAction): AppState {
     return {
       ...state,
       shapes: action.shapes,
+    };
+  }
+
+  if (action.type === "RESIZE") {
+    return {
+      ...state,
+      shapes: state.shapes.map((shape) => {
+        if (state.selectedShapes.includes(shape.id) && shape.type !== "text") {
+          return {
+            ...shape,
+            width: action.width || shape.width,
+            height: action.height || shape.height,
+          };
+        }
+
+        return shape;
+      }),
     };
   }
 

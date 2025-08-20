@@ -3,9 +3,18 @@ import { Stage, Layer, Transformer } from "react-konva";
 import { useAppContext } from "../context";
 import type Konva from "konva";
 import { cx } from "class-variance-authority";
-import { ZOOM_FACTOR } from "../const";
+import { DEFAULT_COLOR, ZOOM_FACTOR } from "../const";
 import { Shape } from "./Shape";
 import { PendingTextInput } from "./PendingTextInput";
+import type { ShapeData, Tool } from "@/types";
+
+const fill = DEFAULT_COLOR;
+const fontSize = 24;
+const fontFamily = "Arial";
+const fontStyle = "normal";
+const lineHeight = 1;
+const letterSpacing = 0;
+const textDecoration = "";
 
 export function Canvas() {
   const {
@@ -34,14 +43,21 @@ export function Canvas() {
     const transform = stageRef.current.getAbsoluteTransform().copy().invert();
     const pos = transform.point(pointerPos);
 
-    if (!isPanning && !pendingShape) {
+    const newShape = initializeShape({
+      currentToolId: currentTool.id,
+      shapes: shapes,
+      initX: pos.x,
+      initY: pos.y,
+    });
+
+    if (newShape && !isPanning && !pendingShape) {
       dispatch({
         type: "START_CREATING_SHAPE",
-        x: pos.x,
-        y: pos.y,
+        newShape,
       });
     }
   };
+
   const handleMouseMove = () => {
     if (!pendingShape) return;
     if (!stageRef.current) return;
@@ -55,14 +71,26 @@ export function Canvas() {
     const dx = pos.x - pendingShape.x;
     const dy = pos.y - pendingShape.y;
 
-    dispatch({ type: "RESIZE", width: dx, height: dy });
+    const resizedShape = getResizedShape({
+      shape: pendingShape,
+      newWidth: dx,
+      newHeight: dy,
+    });
+
+    dispatch({
+      type: "UPDATE_SHAPE",
+      shapeId: pendingShape.id,
+      data: resizedShape,
+    });
   };
+
   const handleWheel = (e: Konva.KonvaEventObject<WheelEvent>) => {
     e.evt.preventDefault();
     const newScale =
       e.evt.deltaY < 0 ? scale * ZOOM_FACTOR : scale / ZOOM_FACTOR;
     dispatch({ type: "CHANGE_SCALE", scale: newScale });
   };
+
   const handleTransform = (e: Konva.KonvaEventObject<Event>) => {
     const node = e.target;
     if (!node) return;
@@ -109,6 +137,7 @@ export function Canvas() {
       },
     });
   };
+
   const handleDragMove = (e: Konva.KonvaEventObject<DragEvent>) => {
     const node = e.target;
 
@@ -124,6 +153,7 @@ export function Canvas() {
       data: { x: updatedX, y: updatedY },
     });
   };
+
   const handleMouseUp = () => {
     if (pendingShape && pendingShape.type !== "text") {
       dispatch({ type: "CONFIRM_PENDING_SHAPE" });
@@ -244,4 +274,96 @@ export function Canvas() {
       )}
     </>
   );
+}
+
+function initializeShape({
+  currentToolId,
+  shapes,
+  initX,
+  initY,
+}: {
+  currentToolId: Tool["id"];
+  shapes: ShapeData[];
+  initX: number;
+  initY: number;
+}): ShapeData | null {
+  const id = crypto.randomUUID();
+
+  switch (currentToolId) {
+    case "rectangle":
+      const rectangleIndex =
+        shapes.filter((shape) => shape.type === "rectangle").length + 1;
+
+      return {
+        type: "rectangle",
+        id,
+        name: `Rectangle ${rectangleIndex}`,
+        x: initX,
+        y: initY,
+        fill,
+        width: 0,
+        height: 0,
+      };
+    case "ellipse":
+      const ellipseIndex =
+        shapes.filter((shape) => shape.type === "ellipse").length + 1;
+
+      return {
+        type: "ellipse",
+        id,
+        name: `Ellipse ${ellipseIndex}`,
+        x: initX,
+        y: initY,
+        fill,
+        width: 0,
+        height: 0,
+      };
+    case "text":
+      return {
+        type: "text",
+        id,
+        name: "",
+        x: initX,
+        y: initY,
+        fill,
+        text: "",
+        fontSize,
+        fontFamily,
+        fontStyle,
+        letterSpacing,
+        lineHeight,
+        textDecoration,
+      };
+    default:
+      return null;
+  }
+}
+
+function getResizedShape({
+  shape,
+  newWidth,
+  newHeight,
+}: {
+  shape: ShapeData;
+  newWidth: number;
+  newHeight: number;
+}): ShapeData {
+  switch (shape.type) {
+    case "rectangle":
+      return {
+        ...shape,
+        width: newWidth,
+        height: newHeight,
+      };
+    case "ellipse":
+      return {
+        ...shape,
+        width: Math.abs(newWidth),
+        height: Math.abs(newHeight),
+        offsetX: newWidth ? -newWidth / 2 : shape.offsetX,
+        offsetY: newHeight ? -newHeight / 2 : shape.offsetY,
+      };
+    default:
+      return shape;
+  }
 }
