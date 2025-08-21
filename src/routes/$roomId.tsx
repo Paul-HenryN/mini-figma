@@ -4,6 +4,7 @@ import { PropsSidebar } from "@/components/PropsSidebar";
 import { Toolbar } from "@/components/Toolbar";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppContextProvider } from "@/context";
+import { RealtimeManager } from "@/components/RealtimeManager";
 import { createFileRoute } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/$roomId")({
@@ -15,6 +16,8 @@ function RouteComponent() {
 
   return (
     <AppContextProvider roomId={roomId}>
+      <RealtimeManager />
+
       <SidebarProvider>
         <LayersSidebar />
         <PropsSidebar />

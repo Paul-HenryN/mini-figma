@@ -3,18 +3,18 @@ import React, {
   useCallback,
   useContext,
   useEffect,
+  useMemo,
   useReducer,
+  useState,
   type ActionDispatch,
 } from "react";
 import type { ShapeData, Tool } from "./types";
 import { APP_TOOLS, MAX_ZOOM, MIN_ZOOM } from "./const";
-import { WebsocketProvider } from "y-websocket";
-import { useY } from "react-yjs";
-import { deepEqual } from "fast-equals";
-import * as Y from "yjs";
+import { handleRealtime } from "./components/RealtimeManager";
 
-type AppState = {
+export type AppState = {
   roomId?: string;
+  clientId: string;
   currentTool: Tool;
   scale: number;
   shapes: ShapeData[];
@@ -22,7 +22,7 @@ type AppState = {
   selectedShapes: ShapeData["id"][];
   isPanning: boolean;
 };
-type AppAction =
+export type AppAction =
   | {
       type: "CHANGE_TOOL";
       tool: Tool;
@@ -75,6 +75,7 @@ type AppContextType = {
 };
 
 const DEFAULT_STATE: AppState = {
+  clientId: crypto.randomUUID(),
   currentTool: APP_TOOLS.MOVE,
   scale: 1,
   shapes: [],
@@ -88,9 +89,6 @@ const AppContext = createContext<AppContextType>({
   dispatch: () => {},
 });
 
-const yDoc = new Y.Doc();
-const yShapes = yDoc.getArray<ShapeData>("shapes");
-
 export function AppContextProvider({
   children,
   roomId,
@@ -98,93 +96,33 @@ export function AppContextProvider({
   children: React.ReactNode;
   roomId: string;
 }) {
-  const [state, dispatchBase] = useReducer(reducer, DEFAULT_STATE);
-  const shapes = useY(yShapes);
+  const [clientId] = useState(
+    localStorage.getItem("clientId") || crypto.randomUUID()
+  );
+  const [stateBase, dispatchBase] = useReducer(reducer, DEFAULT_STATE);
+
+  const state = useMemo(() => {
+    return { ...stateBase, clientId, roomId };
+  }, [stateBase, clientId, roomId]);
 
   const dispatch = useCallback(
     (action: AppAction) => {
-      if (action.type === "START_CREATING_SHAPE") {
-        yShapes.push([action.newShape]);
-      } else if (action.type === "UPDATE_SHAPE") {
-        yShapes.forEach((shape, i) => {
-          if (shape.id === action.shapeId) {
-            yDoc.transact(() => {
-              yShapes.delete(i);
-              yShapes.insert(i, [{ ...shape, ...action.data }]);
-            });
-          }
-        });
-      } else if (action.type === "DELETE") {
-        yShapes.forEach((shape, i) => {
-          if (shape.id === action.shapeId) {
-            yShapes.delete(i);
-          }
-        });
-      } else if (action.type === "CHANGE_COLOR") {
-        yDoc.transact(() => {
-          yShapes.forEach((shape, i) => {
-            if (state.selectedShapes.includes(shape.id)) {
-              yShapes.delete(i);
-              yShapes.insert(i, [{ ...shape, fill: action.color }]);
-            }
-          });
-        });
-      } else if (action.type === "CHANGE_STROKE") {
-        yDoc.transact(() => {
-          yShapes.forEach((shape, i) => {
-            if (state.selectedShapes.includes(shape.id)) {
-              yShapes.delete(i);
-              yShapes.insert(i, [
-                { ...shape, stroke: action.color, strokeWidth: action.width },
-              ]);
-            }
-          });
-        });
-      } else if (action.type === "MOVE") {
-        yDoc.transact(() => {
-          yShapes.forEach((shape, i) => {
-            if (state.selectedShapes.includes(shape.id)) {
-              yShapes.delete(i);
-              yShapes.insert(i, [
-                { ...shape, x: action.x || shape.x, y: action.y || shape.y },
-              ]);
-            }
-          });
-        });
-      }
-
+      handleRealtime(state, action);
       dispatchBase(action);
     },
-    [state, dispatchBase]
+    [state, dispatchBase, handleRealtime]
   );
 
   useEffect(() => {
-    if (!roomId) return;
-
-    const wsProvider = new WebsocketProvider(
-      "ws://localhost:1234",
-      roomId,
-      yDoc
-    );
-    wsProvider.on("status", (event) => {
-      console.log("Websocket status:", event.status);
-    });
-
-    return () => {
-      wsProvider.destroy();
-    };
-  }, [roomId]);
-
-  useEffect(() => {
-    if (!deepEqual(shapes, state.shapes)) {
-      dispatch({ type: "SYNC_SHAPES", shapes });
+    if (!localStorage.getItem("clientId")) {
+      localStorage.setItem("clientId", crypto.randomUUID());
     }
-  }, [shapes]);
+  }, []);
 
   return (
     <AppContext.Provider
       value={{
-        state: { ...state, roomId },
+        state: { ...state },
         dispatch,
       }}
     >
