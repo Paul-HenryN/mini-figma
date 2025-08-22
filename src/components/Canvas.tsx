@@ -3,7 +3,7 @@ import { Stage, Layer, Transformer } from "react-konva";
 import { useAppContext } from "../context";
 import type Konva from "konva";
 import { cx } from "class-variance-authority";
-import { DEFAULT_COLOR, ZOOM_FACTOR } from "../const";
+import { DEFAULT_COLOR, UI_COLOR, ZOOM_FACTOR } from "../const";
 import { Shape } from "./Shape";
 import { PendingTextInput } from "./PendingTextInput";
 import type { ShapeData, Tool } from "@/types";
@@ -20,17 +20,19 @@ export function Canvas() {
   const {
     state: {
       shapes,
-      selectedShapes,
+      shapesSelectedByClientId,
       pendingShapeId,
       scale,
       isPanning,
       currentTool,
+      clientId,
+      participants,
     },
     dispatch,
   } = useAppContext();
 
   const stageRef = useRef<Konva.Stage>(null);
-  const transformerRef = useRef<Konva.Transformer>(null);
+  const transformerRefs = useRef<(Konva.Transformer | null)[]>([]);
   const layerRef = useRef<Konva.Layer>(null);
   const pendingShape = shapes.find((shape) => shape.id === pendingShapeId);
 
@@ -54,6 +56,12 @@ export function Canvas() {
       dispatch({
         type: "START_CREATING_SHAPE",
         newShape,
+      });
+    }
+
+    if (currentTool.id === "move") {
+      dispatch({
+        type: "UNSELECT_ALL",
       });
     }
   };
@@ -204,15 +212,28 @@ export function Canvas() {
   }, [pendingShapeId]);
 
   useEffect(() => {
-    if (!layerRef.current || !transformerRef.current) return;
+    transformerRefs.current = transformerRefs.current.slice(
+      0,
+      Object.keys(shapesSelectedByClientId).length
+    );
+  }, [shapesSelectedByClientId]);
 
-    const selectedNodes = layerRef.current.children.filter((child) => {
-      const id = child.getAttrs().id;
-      return id && selectedShapes.includes(id);
+  useEffect(() => {
+    if (!layerRef.current) return;
+
+    transformerRefs.current.forEach((transformer, i) => {
+      if (!transformer || !layerRef.current) return;
+
+      const selectedShapes = Object.values(shapesSelectedByClientId)[i] || [];
+
+      const selectedNodes = layerRef.current.children.filter((child) => {
+        const id = child.getAttrs().id;
+        return id && selectedShapes.includes(id);
+      });
+
+      transformer.nodes(selectedNodes);
     });
-
-    transformerRef.current.nodes(selectedNodes);
-  }, [selectedShapes]);
+  }, [shapesSelectedByClientId]);
 
   return (
     <>
@@ -244,17 +265,34 @@ export function Canvas() {
               }}
               onTransform={handleTransform}
               draggable={
-                selectedShapes.includes(shape.id) && currentTool.id === "move"
+                shapesSelectedByClientId[clientId]?.includes(shape.id) &&
+                currentTool.id === "move"
               }
               stopPropagation={currentTool.id === "move"}
               onDragMove={handleDragMove}
             />
           ))}
 
-          <Transformer
-            ref={transformerRef}
-            onMouseDown={(e) => (e.cancelBubble = true)}
-          />
+          {Object.keys(shapesSelectedByClientId).map((selectingclientId, i) => {
+            const isCurrentClient = selectingclientId === clientId;
+            const participant = participants.find(
+              (p) => p.clientId === selectingclientId
+            );
+
+            return (
+              <Transformer
+                key={selectingclientId}
+                ref={(el) => {
+                  transformerRefs.current[i] = el;
+                }}
+                onMouseDown={(e) => (e.cancelBubble = true)}
+                rotateEnabled={isCurrentClient}
+                enabledAnchors={isCurrentClient ? undefined : []}
+                borderStroke={isCurrentClient ? UI_COLOR : participant?.color}
+                anchorStroke={isCurrentClient ? UI_COLOR : participant?.color}
+              />
+            );
+          })}
         </Layer>
       </Stage>
 

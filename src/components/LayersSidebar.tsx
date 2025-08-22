@@ -17,9 +17,11 @@ import type { ShapeData } from "@/types";
 
 export function LayersSidebar() {
   const {
-    state: { shapes, selectedShapes },
+    state: { shapes, shapesSelectedByClientId, clientId },
     dispatch,
   } = useAppContext();
+
+  const selectedShapes = shapesSelectedByClientId[clientId] || [];
 
   return (
     <Sidebar side="left" className="w-[15rem]">

@@ -23,12 +23,15 @@ import {
   DEFAULT_COLOR,
   DEFAULT_STROKE_COLOR,
   DEFAULT_STROKE_WIDTH,
+  UI_COLOR,
   ZOOM_FACTOR,
 } from "../const";
 import { Button } from "./ui/button";
-import type { ShapeData } from "../types";
+import type { Participant, ShapeData } from "../types";
 import { ColorInput } from "./ColorInput";
 import { NumberInput } from "./NumberInput";
+import { Avatar, AvatarFallback } from "./ui/avatar";
+import { cn } from "@/lib/utils";
 
 function getShapeLabel(shapeType: ShapeData["type"]) {
   switch (shapeType) {
@@ -73,10 +76,18 @@ const ZOOM_OPTIONS: {
 
 export function PropsSidebar() {
   const {
-    state: { scale, selectedShapes, shapes, pendingShapeId },
+    state: {
+      scale,
+      shapesSelectedByClientId,
+      shapes,
+      pendingShapeId,
+      clientId,
+      participants,
+    },
     dispatch,
   } = useAppContext();
 
+  const selectedShapes = shapesSelectedByClientId[clientId] || [];
   const formattedScale = (100 * scale).toFixed(0);
 
   const getTitle = () => {
@@ -100,11 +111,31 @@ export function PropsSidebar() {
   };
 
   const pendingShape = shapes.find((shape) => shape.id === pendingShapeId);
+  const currentParticipant = participants.find((p) => p.clientId === clientId);
 
   return (
     <Sidebar side="right">
       <SidebarContent>
-        <SidebarHeader className="py-5">
+        <SidebarHeader className="py-5 flex-row gap-2 items-center">
+          <ul className="flex flex-wrap gap-1 group/participants">
+            {currentParticipant && (
+              <li>
+                <ParticipantAvatar
+                  participant={currentParticipant}
+                  isCurrentParticipant
+                />
+              </li>
+            )}
+
+            {participants
+              .filter((p) => p.clientId !== clientId)
+              .map((participant) => (
+                <li key={participant.clientId}>
+                  <ParticipantAvatar participant={participant} />
+                </li>
+              ))}
+          </ul>
+
           <Menubar className="w-max ml-auto bg-transparent border-none">
             <MenubarMenu>
               <MenubarTrigger asChild>
@@ -161,13 +192,41 @@ export function PropsSidebar() {
   );
 }
 
+function ParticipantAvatar({
+  participant,
+  className,
+  style,
+  isCurrentParticipant = false,
+}: {
+  participant: Participant;
+  className?: string;
+  style?: React.CSSProperties;
+  isCurrentParticipant?: boolean;
+}) {
+  return (
+    <Avatar
+      className={cn("size-6 text-white font-bold", className)}
+      style={style}
+    >
+      <AvatarFallback
+        style={{
+          backgroundColor: isCurrentParticipant ? UI_COLOR : participant.color,
+        }}
+      >
+        {participant.clientId.at(0)}
+      </AvatarFallback>
+    </Avatar>
+  );
+}
+
 function FillPropsGroup() {
   const {
-    state: { shapes, selectedShapes, pendingShapeId },
+    state: { shapes, shapesSelectedByClientId, pendingShapeId, clientId },
     dispatch,
   } = useAppContext();
 
   const pendingShape = shapes.find((shape) => shape.id === pendingShapeId);
+  const selectedShapes = shapesSelectedByClientId[clientId];
 
   const getCurrentFill = () => {
     if (pendingShape) {
@@ -245,11 +304,12 @@ function FillPropsGroup() {
 
 function StrokePropsGroup() {
   const {
-    state: { shapes, selectedShapes, pendingShapeId },
+    state: { shapes, shapesSelectedByClientId, pendingShapeId, clientId },
     dispatch,
   } = useAppContext();
 
   const pendingShape = shapes.find((shape) => shape.id === pendingShapeId);
+  const selectedShapes = shapesSelectedByClientId[clientId];
 
   const getCurrentStroke = () => {
     if (pendingShape && pendingShape.stroke) {
@@ -373,11 +433,12 @@ function StrokePropsGroup() {
 
 function LayoutPropsGroup() {
   const {
-    state: { shapes, selectedShapes, pendingShapeId },
+    state: { shapes, shapesSelectedByClientId, pendingShapeId, clientId },
     dispatch,
   } = useAppContext();
 
   const pendingShape = shapes.find((shape) => shape.id === pendingShapeId);
+  const selectedShapes = shapesSelectedByClientId[clientId];
 
   const getCurrentWidth = () => {
     if (pendingShape) {
@@ -477,11 +538,12 @@ function LayoutPropsGroup() {
 
 function PositionPropsGroup() {
   const {
-    state: { shapes, selectedShapes, pendingShapeId },
+    state: { shapes, pendingShapeId, shapesSelectedByClientId, clientId },
     dispatch,
   } = useAppContext();
 
   const pendingShape = shapes.find((shape) => shape.id === pendingShapeId);
+  const selectedShapes = shapesSelectedByClientId[clientId];
 
   const getCurrentX = () => {
     if (pendingShape) {

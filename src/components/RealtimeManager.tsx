@@ -1,11 +1,15 @@
 import { WebsocketProvider } from "y-websocket";
 import * as Y from "yjs";
-import { useEffect } from "react";
-import type { ShapeData } from "@/types";
+import { useEffect, useRef } from "react";
+import type { Participant, ShapeData } from "@/types";
 import { useAppContext, type AppAction, type AppState } from "@/context";
+import { PARTICIPANT_COLORS } from "@/const";
 
 const yDoc = new Y.Doc();
 const yShapes = yDoc.getArray<ShapeData>("shapes");
+const yShapesSelectedByClientId = yDoc.getMap<ShapeData["id"][]>(
+  "shapesSelectedByClientId"
+);
 
 export function RealtimeManager() {
   const {
@@ -13,30 +17,69 @@ export function RealtimeManager() {
     dispatch,
   } = useAppContext();
 
+  const wsProviderRef = useRef<WebsocketProvider | null>(null);
+
   useEffect(() => {
     if (!roomId) return;
 
-    const wsProvider = new WebsocketProvider(
+    wsProviderRef.current = new WebsocketProvider(
       "ws://localhost:1234",
       roomId,
       yDoc
     );
-    wsProvider.on("status", (event) => {
+    wsProviderRef.current.on("status", (event) => {
       console.log("Websocket status:", event.status);
     });
 
+    wsProviderRef.current.awareness.setLocalState({
+      clientId,
+      joinedAt: Date.now(),
+    });
+
+    const awarenessObserver = () => {
+      if (!wsProviderRef.current) return;
+
+      const participants = Array.from(
+        Array.from(wsProviderRef.current.awareness.getStates().values())
+      ) as Participant[];
+
+      const participantsWithColor = participants
+        .toSorted((a, b) => a.joinedAt - b.joinedAt)
+        .map((participant, i) => ({
+          ...participant,
+          color: PARTICIPANT_COLORS[i],
+        }));
+
+      dispatch({
+        type: "SYNC_PARTICIPANTS",
+        participants: participantsWithColor,
+      });
+    };
     const shapesObserver = (e: Y.YArrayEvent<ShapeData>) => {
       if (e.transaction.origin !== clientId) {
-        console.log(e.target.toArray());
         dispatch({ type: "SYNC_SHAPES", shapes: e.target.toArray() });
       }
     };
+    const shapesSelectedByClientIdObserver = (
+      e: Y.YMapEvent<ShapeData["id"][]>
+    ) => {
+      if (e.transaction.origin !== clientId) {
+        dispatch({
+          type: "SYNC_SELECTED_SHAPES",
+          shapesSelectedByClientId: e.target.toJSON(),
+        });
+      }
+    };
 
+    wsProviderRef.current.awareness.on("change", awarenessObserver);
     yShapes.observe(shapesObserver);
+    yShapesSelectedByClientId.observe(shapesSelectedByClientIdObserver);
 
     return () => {
-      wsProvider.destroy();
+      wsProviderRef.current?.awareness.off("change", awarenessObserver);
       yShapes.unobserve(shapesObserver);
+      wsProviderRef.current?.destroy();
+      yShapesSelectedByClientId.unobserve(shapesSelectedByClientIdObserver);
     };
   }, [roomId]);
 
@@ -48,10 +91,13 @@ export function handleRealtime(state: AppState, action: AppAction) {
     yDoc.transact(callback, state.clientId);
   };
 
+  const selectedShapes = state.shapesSelectedByClientId[state.clientId] || [];
+
   switch (action.type) {
     case "START_CREATING_SHAPE":
       transact(() => {
         yShapes.push([action.newShape]);
+        yShapesSelectedByClientId.set(state.clientId, [action.newShape.id]);
       });
       break;
     case "UPDATE_SHAPE":
@@ -76,7 +122,7 @@ export function handleRealtime(state: AppState, action: AppAction) {
     case "CHANGE_COLOR":
       transact(() => {
         yShapes.forEach((shape, i) => {
-          if (state.selectedShapes.includes(shape.id)) {
+          if (selectedShapes.includes(shape.id)) {
             yShapes.delete(i);
             yShapes.insert(i, [{ ...shape, fill: action.color }]);
           }
@@ -86,7 +132,7 @@ export function handleRealtime(state: AppState, action: AppAction) {
     case "CHANGE_STROKE":
       transact(() => {
         yShapes.forEach((shape, i) => {
-          if (state.selectedShapes.includes(shape.id)) {
+          if (selectedShapes.includes(shape.id)) {
             yShapes.delete(i);
             yShapes.insert(i, [
               { ...shape, stroke: action.color, strokeWidth: action.width },
@@ -98,13 +144,37 @@ export function handleRealtime(state: AppState, action: AppAction) {
     case "MOVE":
       transact(() => {
         yShapes.forEach((shape, i) => {
-          if (state.selectedShapes.includes(shape.id)) {
+          if (selectedShapes.includes(shape.id)) {
             yShapes.delete(i);
             yShapes.insert(i, [
               { ...shape, x: action.x || shape.x, y: action.y || shape.y },
             ]);
           }
         });
+      });
+      break;
+    case "TOGGLE_SELECT":
+      transact(() => {
+        if (action.multiSelectEnabled) {
+          if (selectedShapes.includes(action.shapeId)) {
+            yShapesSelectedByClientId.set(
+              state.clientId,
+              selectedShapes.filter((id) => id !== action.shapeId)
+            );
+          } else {
+            yShapesSelectedByClientId.set(state.clientId, [
+              ...selectedShapes,
+              action.shapeId,
+            ]);
+          }
+        } else {
+          yShapesSelectedByClientId.set(state.clientId, [action.shapeId]);
+        }
+      });
+      break;
+    case "UNSELECT_ALL":
+      transact(() => {
+        yShapesSelectedByClientId.set(state.clientId, []);
       });
       break;
     default:

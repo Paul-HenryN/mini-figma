@@ -35,3 +35,9 @@ export type ShapeData = {
       textDecoration: string;
     }
 );
+
+export type Participant = {
+  clientId: string;
+  color?: string;
+  joinedAt: number;
+};
