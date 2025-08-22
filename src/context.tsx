@@ -72,7 +72,8 @@ export type AppAction =
       type: "SYNC_SELECTED_SHAPES";
       shapesSelectedByClientId: Record<string, ShapeData["id"][]>;
     }
-  | { type: "SYNC_PARTICIPANTS"; participants: Participant[] };
+  | { type: "SYNC_PARTICIPANTS"; participants: Participant[] }
+  | { type: "UPDATE_CURSOR_POSITION"; x: number; y: number };
 
 type AppContextType = {
   state: AppState;
@@ -349,6 +350,19 @@ function reducer(state: AppState, action: AppAction): AppState {
         }
 
         return shape;
+      }),
+    };
+  }
+
+  if (action.type === "UPDATE_CURSOR_POSITION") {
+    return {
+      ...state,
+      participants: state.participants.map((p) => {
+        if (p.clientId === state.clientId) {
+          return { ...p, cursorPosition: { x: action.x, y: action.y } };
+        }
+
+        return p;
       }),
     };
   }

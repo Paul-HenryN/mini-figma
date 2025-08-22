@@ -30,9 +30,11 @@
     "react-colorful": "^5.6.1",
     "react-dom": "^19.1.1",
     "react-konva": "^19.0.7",
+    "react-konva-utils": "^1.1.2",
     "react-yjs": "^2.0.1",
     "tailwind-merge": "^3.3.1",
     "tailwindcss": "^4.1.11",
+    "y-protocols": "^1.0.6",
     "y-websocket": "^3.0.0",
     "yjs": "^13.6.27"
   },

@@ -40,4 +40,8 @@ export type Participant = {
   clientId: string;
   color?: string;
   joinedAt: number;
+  cursorPosition?: {
+    x: number;
+    y: number;
+  };
 };

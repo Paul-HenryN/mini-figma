@@ -1,9 +1,10 @@
 import { WebsocketProvider } from "y-websocket";
 import * as Y from "yjs";
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import type { Participant, ShapeData } from "@/types";
 import { useAppContext, type AppAction, type AppState } from "@/context";
 import { PARTICIPANT_COLORS } from "@/const";
+import * as awarenessProtocol from "y-protocols/awareness";
 
 const yDoc = new Y.Doc();
 const yShapes = yDoc.getArray<ShapeData>("shapes");
@@ -11,36 +12,40 @@ const yShapesSelectedByClientId = yDoc.getMap<ShapeData["id"][]>(
   "shapesSelectedByClientId"
 );
 
+let wsProvider: WebsocketProvider | null = null;
+let awareness: awarenessProtocol.Awareness | null = null;
+
 export function RealtimeManager() {
   const {
     state: { roomId, clientId },
     dispatch,
   } = useAppContext();
 
-  const wsProviderRef = useRef<WebsocketProvider | null>(null);
-
   useEffect(() => {
     if (!roomId) return;
 
-    wsProviderRef.current = new WebsocketProvider(
-      "ws://localhost:1234",
-      roomId,
-      yDoc
-    );
-    wsProviderRef.current.on("status", (event) => {
+    wsProvider = new WebsocketProvider("ws://localhost:1234", roomId, yDoc);
+    wsProvider.on("status", (event) => {
       console.log("Websocket status:", event.status);
     });
 
-    wsProviderRef.current.awareness.setLocalState({
+    awareness = wsProvider.awareness;
+
+    awareness.setLocalState({
       clientId,
       joinedAt: Date.now(),
     });
 
     const awarenessObserver = () => {
-      if (!wsProviderRef.current) return;
+      if (!awareness) return;
+
+      console.log(
+        "Awareness changed",
+        Array.from(awareness.getStates().values())
+      );
 
       const participants = Array.from(
-        Array.from(wsProviderRef.current.awareness.getStates().values())
+        Array.from(awareness.getStates().values())
       ) as Participant[];
 
       const participantsWithColor = participants
@@ -71,14 +76,14 @@ export function RealtimeManager() {
       }
     };
 
-    wsProviderRef.current.awareness.on("change", awarenessObserver);
+    awareness.on("change", awarenessObserver);
     yShapes.observe(shapesObserver);
     yShapesSelectedByClientId.observe(shapesSelectedByClientIdObserver);
 
     return () => {
-      wsProviderRef.current?.awareness.off("change", awarenessObserver);
+      awareness?.off("change", awarenessObserver);
       yShapes.unobserve(shapesObserver);
-      wsProviderRef.current?.destroy();
+      awareness?.destroy();
       yShapesSelectedByClientId.unobserve(shapesSelectedByClientIdObserver);
     };
   }, [roomId]);
@@ -175,6 +180,12 @@ export function handleRealtime(state: AppState, action: AppAction) {
     case "UNSELECT_ALL":
       transact(() => {
         yShapesSelectedByClientId.set(state.clientId, []);
+      });
+      break;
+    case "UPDATE_CURSOR_POSITION":
+      awareness?.setLocalState({
+        ...awareness?.getLocalState(),
+        cursorPosition: { x: action.x, y: action.y },
       });
       break;
     default:

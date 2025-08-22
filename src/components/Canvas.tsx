@@ -7,6 +7,7 @@ import { DEFAULT_COLOR, UI_COLOR, ZOOM_FACTOR } from "../const";
 import { Shape } from "./Shape";
 import { PendingTextInput } from "./PendingTextInput";
 import type { ShapeData, Tool } from "@/types";
+import { ParticipantCursor } from "./ParticipantCursor";
 
 const fill = DEFAULT_COLOR;
 const fontSize = 24;
@@ -67,11 +68,18 @@ export function Canvas() {
   };
 
   const handleMouseMove = () => {
-    if (!pendingShape) return;
     if (!stageRef.current) return;
 
-    const pointerPos = stageRef.current.getPointerPosition();
+    const pointerPos = stageRef.current.getRelativePointerPosition();
     if (!pointerPos) return;
+
+    dispatch({
+      type: "UPDATE_CURSOR_POSITION",
+      x: pointerPos.x,
+      y: pointerPos.y,
+    });
+
+    if (!pendingShape) return;
 
     const transform = stageRef.current.getAbsoluteTransform().copy().invert();
     const pos = transform.point(pointerPos);
@@ -246,7 +254,7 @@ export function Canvas() {
         onMouseUp={handleMouseUp}
         draggable={isPanning}
         ref={stageRef}
-        className={cx(isPanning && "cursor-grab")}
+        className={cx("cursor-none")}
       >
         <Layer ref={layerRef}>
           {shapes.map((shape) => (
@@ -290,11 +298,23 @@ export function Canvas() {
                 enabledAnchors={isCurrentClient ? undefined : []}
                 borderStroke={isCurrentClient ? UI_COLOR : participant?.color}
                 anchorStroke={isCurrentClient ? UI_COLOR : participant?.color}
+                anchorSize={15}
               />
             );
           })}
         </Layer>
       </Stage>
+
+      {participants.map(
+        (participant) =>
+          stageRef.current && (
+            <ParticipantCursor
+              participant={participant}
+              stage={stageRef.current}
+              isCurrentParticipant={participant.clientId === clientId}
+            />
+          )
+      )}
 
       {pendingShape && pendingShape?.type === "text" && stageRef.current && (
         <PendingTextInput

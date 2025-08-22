@@ -144,7 +144,7 @@ export function PropsSidebar() {
                 </Button>
               </MenubarTrigger>
 
-              <MenubarContent>
+              <MenubarContent className="z-200">
                 {ZOOM_OPTIONS.map((option) => (
                   <MenubarItem
                     onClick={() =>
