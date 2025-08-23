@@ -185,7 +185,7 @@ export function handleRealtime(state: AppState, action: AppAction) {
     case "UPDATE_CURSOR_POSITION":
       awareness?.setLocalState({
         ...awareness?.getLocalState(),
-        cursorPosition: { x: action.x, y: action.y },
+        cursorPosition: action.cursorPosition,
       });
       break;
     default:

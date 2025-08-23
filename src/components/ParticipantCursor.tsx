@@ -17,16 +17,29 @@ export function ParticipantCursor({
   const stageTransform = stage.getAbsoluteTransform().copy();
   const { x, y } = stageTransform.point(participant.cursorPosition);
 
+  const color = isCurrentParticipant ? UI_COLOR : participant.color;
+
   return (
-    <MousePointer2
+    <div
       style={{
         position: "absolute",
         left: x,
         top: y,
-        pointerEvents: "none",
-        fill: isCurrentParticipant ? UI_COLOR : participant.color,
         zIndex: 10,
+        pointerEvents: "none",
       }}
-    />
+    >
+      <MousePointer2
+        style={{
+          fill: color,
+        }}
+      />
+      <div
+        className="rounded-xs px-1 truncate max-w-[100px] mt-1 ml-5 text-sm"
+        style={{ backgroundColor: color }}
+      >
+        {participant.clientId}
+      </div>
+    </div>
   );
 }

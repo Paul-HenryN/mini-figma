@@ -10,6 +10,7 @@ import React, {
 import type { Participant, ShapeData, Tool } from "./types";
 import { APP_TOOLS, MAX_ZOOM, MIN_ZOOM } from "./const";
 import { handleRealtime } from "./components/RealtimeManager";
+import type { Vector2d } from "konva/lib/types";
 
 export type AppState = {
   roomId?: string;
@@ -73,7 +74,7 @@ export type AppAction =
       shapesSelectedByClientId: Record<string, ShapeData["id"][]>;
     }
   | { type: "SYNC_PARTICIPANTS"; participants: Participant[] }
-  | { type: "UPDATE_CURSOR_POSITION"; x: number; y: number };
+  | { type: "UPDATE_CURSOR_POSITION"; cursorPosition: Vector2d | null };
 
 type AppContextType = {
   state: AppState;
@@ -359,7 +360,7 @@ function reducer(state: AppState, action: AppAction): AppState {
       ...state,
       participants: state.participants.map((p) => {
         if (p.clientId === state.clientId) {
-          return { ...p, cursorPosition: { x: action.x, y: action.y } };
+          return { ...p, cursorPosition: action.cursorPosition };
         }
 
         return p;

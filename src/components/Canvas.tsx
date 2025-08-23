@@ -71,15 +71,13 @@ export function Canvas() {
     if (!stageRef.current) return;
 
     const pointerPos = stageRef.current.getRelativePointerPosition();
-    if (!pointerPos) return;
 
     dispatch({
       type: "UPDATE_CURSOR_POSITION",
-      x: pointerPos.x,
-      y: pointerPos.y,
+      cursorPosition: pointerPos,
     });
 
-    if (!pendingShape) return;
+    if (!pointerPos || !pendingShape) return;
 
     const transform = stageRef.current.getAbsoluteTransform().copy().invert();
     const pos = transform.point(pointerPos);
@@ -309,6 +307,7 @@ export function Canvas() {
         (participant) =>
           stageRef.current && (
             <ParticipantCursor
+              key={participant.clientId}
               participant={participant}
               stage={stageRef.current}
               isCurrentParticipant={participant.clientId === clientId}
