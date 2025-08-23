@@ -79,11 +79,8 @@ export function Canvas() {
 
     if (!pointerPos || !pendingShape) return;
 
-    const transform = stageRef.current.getAbsoluteTransform().copy().invert();
-    const pos = transform.point(pointerPos);
-
-    const dx = pos.x - pendingShape.x;
-    const dy = pos.y - pendingShape.y;
+    const dx = pointerPos.x - pendingShape.x;
+    const dy = pointerPos.y - pendingShape.y;
 
     const resizedShape = getResizedShape({
       shape: pendingShape,

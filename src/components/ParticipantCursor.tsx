@@ -34,12 +34,14 @@ export function ParticipantCursor({
           fill: color,
         }}
       />
-      <div
-        className="rounded-xs px-1 truncate max-w-[100px] mt-1 ml-5 text-sm"
-        style={{ backgroundColor: color }}
-      >
-        {participant.clientId}
-      </div>
+      {!isCurrentParticipant && (
+        <div
+          className="rounded-xs px-1 truncate max-w-[100px] mt-1 ml-5 text-sm"
+          style={{ backgroundColor: color }}
+        >
+          {participant.clientId}
+        </div>
+      )}
     </div>
   );
 }
