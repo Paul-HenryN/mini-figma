@@ -17,25 +17,7 @@ export function ParticipantCursor({
   const {
     state: { isPanning },
   } = useAppContext();
-
-  if (!participant.cursorPosition) return null;
-
-  const stageTransform = stage.getAbsoluteTransform().copy();
-  const { x, y } = stageTransform.point(participant.cursorPosition);
-
-  const color = isCurrentParticipant ? UI_COLOR : participant.color;
-
   const [isMouseDown, setMouseDown] = useState(false);
-
-  const getCursorIcon = () => {
-    if (!isCurrentParticipant) return MousePointer2Icon;
-    if (isMouseDown && isPanning) return HandGrabIcon;
-    if (isPanning) return HandIcon;
-
-    return MousePointer2Icon;
-  };
-
-  const CursorIcon = getCursorIcon();
 
   useEffect(() => {
     const handleMouseDown = () => {
@@ -54,6 +36,23 @@ export function ParticipantCursor({
       stage.removeEventListener("mouseup");
     };
   }, []);
+
+  if (!participant.cursorPosition) return null;
+
+  const stageTransform = stage.getAbsoluteTransform().copy();
+  const { x, y } = stageTransform.point(participant.cursorPosition);
+
+  const color = isCurrentParticipant ? UI_COLOR : participant.color;
+
+  const getCursorIcon = () => {
+    if (!isCurrentParticipant) return MousePointer2Icon;
+    if (isMouseDown && isPanning) return HandGrabIcon;
+    if (isPanning) return HandIcon;
+
+    return MousePointer2Icon;
+  };
+
+  const CursorIcon = getCursorIcon();
 
   return (
     <div

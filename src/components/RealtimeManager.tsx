@@ -83,6 +83,7 @@ export function RealtimeManager() {
       yShapes.unobserve(shapesObserver);
       awareness?.destroy();
       yShapesSelectedByClientId.unobserve(shapesSelectedByClientIdObserver);
+      wsProvider?.destroy();
     };
   }, [roomId]);
 
