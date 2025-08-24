@@ -271,7 +271,7 @@ export function Canvas() {
               data={shape}
               isPending={pendingShapeId === shape.id}
               onClick={(e) => {
-                if (currentTool.id === "move") {
+                if (currentTool.id === "move" && !isPanning) {
                   dispatch({
                     type: "TOGGLE_SELECT",
                     shapeId: shape.id,
@@ -284,7 +284,7 @@ export function Canvas() {
                 shapesSelectedByClientId[clientId]?.includes(shape.id) &&
                 currentTool.id === "move"
               }
-              stopPropagation={currentTool.id === "move"}
+              stopPropagation={currentTool.id === "move" && !isPanning}
               onDragMove={handleDragMove}
             />
           ))}

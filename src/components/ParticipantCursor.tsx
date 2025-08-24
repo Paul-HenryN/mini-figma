@@ -28,6 +28,7 @@ export function ParticipantCursor({
   const [isMouseDown, setMouseDown] = useState(false);
 
   const getCursorIcon = () => {
+    if (!isCurrentParticipant) return MousePointer2Icon;
     if (isMouseDown && isPanning) return HandGrabIcon;
     if (isPanning) return HandIcon;
 
