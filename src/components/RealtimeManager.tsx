@@ -24,7 +24,10 @@ export function RealtimeManager() {
   useEffect(() => {
     if (!roomId) return;
 
-    wsProvider = new WebsocketProvider("ws://localhost:1234", roomId, yDoc);
+    const websocketUrl = import.meta.env.VITE_WEBSOCKET_URL;
+    if (!websocketUrl) throw new Error("WEBSOCKET_URL is not set");
+
+    wsProvider = new WebsocketProvider(websocketUrl, roomId, yDoc);
     wsProvider.on("status", (event) => {
       console.log("Websocket status:", event.status);
     });
