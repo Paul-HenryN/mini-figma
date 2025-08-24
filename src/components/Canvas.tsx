@@ -38,6 +38,7 @@ export function Canvas() {
 
   const handleMouseDown = () => {
     if (!stageRef.current) return;
+    if (isPanning) return;
 
     const pointerPos = stageRef.current.getPointerPosition();
     if (!pointerPos) return;
@@ -52,7 +53,7 @@ export function Canvas() {
       initY: pos.y,
     });
 
-    if (newShape && !isPanning && !pendingShape) {
+    if (newShape && !pendingShape) {
       dispatch({
         type: "START_CREATING_SHAPE",
         newShape,
@@ -306,6 +307,16 @@ export function Canvas() {
                 borderStroke={isCurrentClient ? UI_COLOR : participant?.color}
                 anchorStroke={UI_COLOR}
                 anchorSize={15}
+                onTransform={() => {
+                  const pointerPos =
+                    stageRef.current?.getRelativePointerPosition();
+                  if (!pointerPos) return;
+
+                  dispatch({
+                    type: "UPDATE_CURSOR_POSITION",
+                    cursorPosition: pointerPos,
+                  });
+                }}
               />
             );
           })}

@@ -1,7 +1,9 @@
 import { UI_COLOR } from "@/const";
+import { useAppContext } from "@/context";
 import type { Participant } from "@/types";
 import type Konva from "konva";
-import { MousePointer2 } from "lucide-react";
+import { HandGrabIcon, HandIcon, MousePointer2Icon } from "lucide-react";
+import { useEffect, useState } from "react";
 
 export function ParticipantCursor({
   participant,
@@ -12,12 +14,45 @@ export function ParticipantCursor({
   stage: Konva.Stage;
   isCurrentParticipant?: boolean;
 }) {
+  const {
+    state: { isPanning },
+  } = useAppContext();
+
   if (!participant.cursorPosition) return null;
 
   const stageTransform = stage.getAbsoluteTransform().copy();
   const { x, y } = stageTransform.point(participant.cursorPosition);
 
   const color = isCurrentParticipant ? UI_COLOR : participant.color;
+
+  const [isMouseDown, setMouseDown] = useState(false);
+
+  const getCursorIcon = () => {
+    if (isMouseDown && isPanning) return HandGrabIcon;
+    if (isPanning) return HandIcon;
+
+    return MousePointer2Icon;
+  };
+
+  const CursorIcon = getCursorIcon();
+
+  useEffect(() => {
+    const handleMouseDown = () => {
+      setMouseDown(true);
+    };
+
+    const handleMouseUp = () => {
+      setMouseDown(false);
+    };
+
+    stage.addEventListener("mousedown", handleMouseDown);
+    stage.addEventListener("mouseup", handleMouseUp);
+
+    return () => {
+      stage.removeEventListener("click");
+      stage.removeEventListener("mouseup");
+    };
+  }, []);
 
   return (
     <div
@@ -29,7 +64,7 @@ export function ParticipantCursor({
         pointerEvents: "none",
       }}
     >
-      <MousePointer2
+      <CursorIcon
         style={{
           fill: color,
         }}
