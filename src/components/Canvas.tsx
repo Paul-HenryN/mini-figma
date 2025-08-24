@@ -2,31 +2,43 @@ import { useEffect, useRef } from "react";
 import { Stage, Layer, Transformer } from "react-konva";
 import { useAppContext } from "../context";
 import type Konva from "konva";
-import { cx } from "class-variance-authority";
-import { ZOOM_FACTOR } from "../const";
+import { DEFAULT_COLOR, UI_COLOR, ZOOM_FACTOR } from "../const";
 import { Shape } from "./Shape";
 import { PendingTextInput } from "./PendingTextInput";
+import type { ShapeData, Tool } from "@/types";
+import { ParticipantCursor } from "./ParticipantCursor";
+
+const fill = DEFAULT_COLOR;
+const fontSize = 24;
+const fontFamily = "Arial";
+const fontStyle = "normal";
+const lineHeight = 1;
+const letterSpacing = 0;
+const textDecoration = "";
 
 export function Canvas() {
   const {
     state: {
       shapes,
-      selectedShapes,
+      shapesSelectedByClientId,
       pendingShapeId,
       scale,
       isPanning,
       currentTool,
+      clientId,
+      participants,
     },
     dispatch,
   } = useAppContext();
 
   const stageRef = useRef<Konva.Stage>(null);
-  const transformerRef = useRef<Konva.Transformer>(null);
+  const transformerRefs = useRef<(Konva.Transformer | null)[]>([]);
   const layerRef = useRef<Konva.Layer>(null);
   const pendingShape = shapes.find((shape) => shape.id === pendingShapeId);
 
   const handleMouseDown = () => {
     if (!stageRef.current) return;
+    if (isPanning) return;
 
     const pointerPos = stageRef.current.getPointerPosition();
     if (!pointerPos) return;
@@ -34,35 +46,62 @@ export function Canvas() {
     const transform = stageRef.current.getAbsoluteTransform().copy().invert();
     const pos = transform.point(pointerPos);
 
-    if (!isPanning && !pendingShape) {
+    const newShape = initializeShape({
+      currentToolId: currentTool.id,
+      shapes: shapes,
+      initX: pos.x,
+      initY: pos.y,
+    });
+
+    if (newShape && !pendingShape) {
       dispatch({
         type: "START_CREATING_SHAPE",
-        x: pos.x,
-        y: pos.y,
+        newShape,
+      });
+    }
+
+    if (currentTool.id === "move") {
+      dispatch({
+        type: "UNSELECT_ALL",
       });
     }
   };
+
   const handleMouseMove = () => {
-    if (!pendingShape) return;
     if (!stageRef.current) return;
 
-    const pointerPos = stageRef.current.getPointerPosition();
-    if (!pointerPos) return;
+    const pointerPos = stageRef.current.getRelativePointerPosition();
 
-    const transform = stageRef.current.getAbsoluteTransform().copy().invert();
-    const pos = transform.point(pointerPos);
+    dispatch({
+      type: "UPDATE_CURSOR_POSITION",
+      cursorPosition: pointerPos,
+    });
 
-    const dx = pos.x - pendingShape.x;
-    const dy = pos.y - pendingShape.y;
+    if (!pointerPos || !pendingShape) return;
 
-    dispatch({ type: "RESIZE", width: dx, height: dy });
+    const dx = pointerPos.x - pendingShape.x;
+    const dy = pointerPos.y - pendingShape.y;
+
+    const resizedShape = getResizedShape({
+      shape: pendingShape,
+      newWidth: dx,
+      newHeight: dy,
+    });
+
+    dispatch({
+      type: "UPDATE_SHAPE",
+      shapeId: pendingShape.id,
+      data: resizedShape,
+    });
   };
+
   const handleWheel = (e: Konva.KonvaEventObject<WheelEvent>) => {
     e.evt.preventDefault();
     const newScale =
       e.evt.deltaY < 0 ? scale * ZOOM_FACTOR : scale / ZOOM_FACTOR;
     dispatch({ type: "CHANGE_SCALE", scale: newScale });
   };
+
   const handleTransform = (e: Konva.KonvaEventObject<Event>) => {
     const node = e.target;
     if (!node) return;
@@ -109,6 +148,7 @@ export function Canvas() {
       },
     });
   };
+
   const handleDragMove = (e: Konva.KonvaEventObject<DragEvent>) => {
     const node = e.target;
 
@@ -123,11 +163,24 @@ export function Canvas() {
       shapeId: node.id(),
       data: { x: updatedX, y: updatedY },
     });
+
+    const pointerPos = stageRef.current?.getRelativePointerPosition();
+    if (!pointerPos) return;
+
+    dispatch({
+      type: "UPDATE_CURSOR_POSITION",
+      cursorPosition: pointerPos,
+    });
   };
+
   const handleMouseUp = () => {
     if (pendingShape && pendingShape.type !== "text") {
       dispatch({ type: "CONFIRM_PENDING_SHAPE" });
     }
+  };
+
+  const handleMouseLeave = () => {
+    dispatch({ type: "UPDATE_CURSOR_POSITION", cursorPosition: null });
   };
 
   useEffect(() => {
@@ -174,15 +227,28 @@ export function Canvas() {
   }, [pendingShapeId]);
 
   useEffect(() => {
-    if (!layerRef.current || !transformerRef.current) return;
+    transformerRefs.current = transformerRefs.current.slice(
+      0,
+      Object.keys(shapesSelectedByClientId).length
+    );
+  }, [shapesSelectedByClientId]);
 
-    const selectedNodes = layerRef.current.children.filter((child) => {
-      const id = child.getAttrs().id;
-      return id && selectedShapes.includes(id);
+  useEffect(() => {
+    if (!layerRef.current) return;
+
+    transformerRefs.current.forEach((transformer, i) => {
+      if (!transformer || !layerRef.current) return;
+
+      const selectedShapes = Object.values(shapesSelectedByClientId)[i] || [];
+
+      const selectedNodes = layerRef.current.children.filter((child) => {
+        const id = child.getAttrs().id;
+        return id && selectedShapes.includes(id);
+      });
+
+      transformer.nodes(selectedNodes);
     });
-
-    transformerRef.current.nodes(selectedNodes);
-  }, [selectedShapes]);
+  }, [shapesSelectedByClientId]);
 
   return (
     <>
@@ -191,11 +257,12 @@ export function Canvas() {
         height={window.innerHeight}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
+        onMouseLeave={handleMouseLeave}
         onWheel={handleWheel}
         onMouseUp={handleMouseUp}
         draggable={isPanning}
         ref={stageRef}
-        className={cx(isPanning && "cursor-grab")}
+        className={"cursor-none"}
       >
         <Layer ref={layerRef}>
           {shapes.map((shape) => (
@@ -204,7 +271,7 @@ export function Canvas() {
               data={shape}
               isPending={pendingShapeId === shape.id}
               onClick={(e) => {
-                if (currentTool.id === "move") {
+                if (currentTool.id === "move" && !isPanning) {
                   dispatch({
                     type: "TOGGLE_SELECT",
                     shapeId: shape.id,
@@ -214,19 +281,60 @@ export function Canvas() {
               }}
               onTransform={handleTransform}
               draggable={
-                selectedShapes.includes(shape.id) && currentTool.id === "move"
+                shapesSelectedByClientId[clientId]?.includes(shape.id) &&
+                currentTool.id === "move" &&
+                !isPanning
               }
-              stopPropagation={currentTool.id === "move"}
+              stopPropagation={currentTool.id === "move" && !isPanning}
               onDragMove={handleDragMove}
             />
           ))}
 
-          <Transformer
-            ref={transformerRef}
-            onMouseDown={(e) => (e.cancelBubble = true)}
-          />
+          {Object.keys(shapesSelectedByClientId).map((selectingclientId, i) => {
+            const isCurrentClient = selectingclientId === clientId;
+            const participant = participants.find(
+              (p) => p.clientId === selectingclientId
+            );
+
+            return (
+              <Transformer
+                key={selectingclientId}
+                ref={(el) => {
+                  transformerRefs.current[i] = el;
+                }}
+                onMouseDown={(e) => (e.cancelBubble = true)}
+                rotateEnabled={isCurrentClient}
+                enabledAnchors={isCurrentClient ? undefined : []}
+                borderStroke={isCurrentClient ? UI_COLOR : participant?.color}
+                anchorStroke={UI_COLOR}
+                anchorSize={15}
+                onTransform={() => {
+                  const pointerPos =
+                    stageRef.current?.getRelativePointerPosition();
+                  if (!pointerPos) return;
+
+                  dispatch({
+                    type: "UPDATE_CURSOR_POSITION",
+                    cursorPosition: pointerPos,
+                  });
+                }}
+              />
+            );
+          })}
         </Layer>
       </Stage>
+
+      {participants.map(
+        (participant) =>
+          stageRef.current && (
+            <ParticipantCursor
+              key={participant.clientId}
+              participant={participant}
+              stage={stageRef.current}
+              isCurrentParticipant={participant.clientId === clientId}
+            />
+          )
+      )}
 
       {pendingShape && pendingShape?.type === "text" && stageRef.current && (
         <PendingTextInput
@@ -244,4 +352,96 @@ export function Canvas() {
       )}
     </>
   );
+}
+
+function initializeShape({
+  currentToolId,
+  shapes,
+  initX,
+  initY,
+}: {
+  currentToolId: Tool["id"];
+  shapes: ShapeData[];
+  initX: number;
+  initY: number;
+}): ShapeData | null {
+  const id = crypto.randomUUID();
+
+  switch (currentToolId) {
+    case "rectangle":
+      const rectangleIndex =
+        shapes.filter((shape) => shape.type === "rectangle").length + 1;
+
+      return {
+        type: "rectangle",
+        id,
+        name: `Rectangle ${rectangleIndex}`,
+        x: initX,
+        y: initY,
+        fill,
+        width: 0,
+        height: 0,
+      };
+    case "ellipse":
+      const ellipseIndex =
+        shapes.filter((shape) => shape.type === "ellipse").length + 1;
+
+      return {
+        type: "ellipse",
+        id,
+        name: `Ellipse ${ellipseIndex}`,
+        x: initX,
+        y: initY,
+        fill,
+        width: 0,
+        height: 0,
+      };
+    case "text":
+      return {
+        type: "text",
+        id,
+        name: "",
+        x: initX,
+        y: initY,
+        fill,
+        text: "",
+        fontSize,
+        fontFamily,
+        fontStyle,
+        letterSpacing,
+        lineHeight,
+        textDecoration,
+      };
+    default:
+      return null;
+  }
+}
+
+function getResizedShape({
+  shape,
+  newWidth,
+  newHeight,
+}: {
+  shape: ShapeData;
+  newWidth: number;
+  newHeight: number;
+}): ShapeData {
+  switch (shape.type) {
+    case "rectangle":
+      return {
+        ...shape,
+        width: newWidth,
+        height: newHeight,
+      };
+    case "ellipse":
+      return {
+        ...shape,
+        width: Math.abs(newWidth),
+        height: Math.abs(newHeight),
+        offsetX: newWidth ? -newWidth / 2 : shape.offsetX,
+        offsetY: newHeight ? -newHeight / 2 : shape.offsetY,
+      };
+    default:
+      return shape;
+  }
 }

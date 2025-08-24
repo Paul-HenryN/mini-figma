@@ -53,7 +53,7 @@ export function ColorInput({
           className="size-6 rounded-sm absolute top-1/2 -translate-y-1/2 left-1.5"
           style={{ backgroundColor: color }}
         />
-        <PopoverContent className="w-fit">
+        <PopoverContent className="w-fit z-100">
           <HexAlphaColorPicker color={color} onChange={handleColorChange} />
         </PopoverContent>
       </Popover>

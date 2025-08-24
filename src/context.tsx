@@ -1,42 +1,36 @@
 import React, {
   createContext,
+  useCallback,
   useContext,
+  useEffect,
   useReducer,
+  useState,
   type ActionDispatch,
 } from "react";
-import type { ShapeData, Tool } from "./types";
-import { APP_TOOLS, DEFAULT_COLOR, MAX_ZOOM, MIN_ZOOM } from "./const";
+import type { Participant, ShapeData, Tool } from "./types";
+import { APP_TOOLS, MAX_ZOOM, MIN_ZOOM } from "./const";
+import { handleRealtime } from "./components/RealtimeManager";
+import type { Vector2d } from "konva/lib/types";
 
-const fill = DEFAULT_COLOR;
-const fontSize = 24;
-const fontFamily = "Arial";
-const fontStyle = "normal";
-const lineHeight = 1;
-const letterSpacing = 0;
-const textDecoration = "";
-
-type AppState = {
+export type AppState = {
+  roomId?: string;
+  clientId: string;
   currentTool: Tool;
   scale: number;
   shapes: ShapeData[];
   pendingShapeId: ShapeData["id"] | null;
-  selectedShapes: ShapeData["id"][];
   isPanning: boolean;
+  shapesSelectedByClientId: Record<string, ShapeData["id"][]>;
+  participants: Participant[];
 };
-type AppAction =
+export type AppAction =
   | {
       type: "CHANGE_TOOL";
       tool: Tool;
     }
   | {
       type: "START_CREATING_SHAPE";
-      x: number;
-      y: number;
-    }
-  | {
-      type: "SCALE_PENDING_SHAPE";
-      dx: number;
-      dy: number;
+      newShape: ShapeData;
     }
   | { type: "CONFIRM_PENDING_SHAPE" }
   | { type: "ENABLE_PANNING" }
@@ -73,7 +67,14 @@ type AppAction =
   | {
       type: "DELETE";
       shapeId?: ShapeData["id"];
-    };
+    }
+  | { type: "SYNC_SHAPES"; shapes: ShapeData[] }
+  | {
+      type: "SYNC_SELECTED_SHAPES";
+      shapesSelectedByClientId: Record<string, ShapeData["id"][]>;
+    }
+  | { type: "SYNC_PARTICIPANTS"; participants: Participant[] }
+  | { type: "UPDATE_CURSOR_POSITION"; cursorPosition: Vector2d | null };
 
 type AppContextType = {
   state: AppState;
@@ -81,12 +82,14 @@ type AppContextType = {
 };
 
 const DEFAULT_STATE: AppState = {
+  clientId: crypto.randomUUID(),
   currentTool: APP_TOOLS.MOVE,
   scale: 1,
   shapes: [],
   pendingShapeId: null,
-  selectedShapes: [],
+  shapesSelectedByClientId: {},
   isPanning: false,
+  participants: [],
 };
 
 const AppContext = createContext<AppContextType>({
@@ -96,15 +99,38 @@ const AppContext = createContext<AppContextType>({
 
 export function AppContextProvider({
   children,
+  roomId,
 }: {
   children: React.ReactNode;
+  roomId: string;
 }) {
-  const [state, dispatch] = useReducer(reducer, DEFAULT_STATE);
+  const [clientId] = useState(
+    localStorage.getItem("clientId") || crypto.randomUUID()
+  );
+  const [state, dispatchBase] = useReducer(reducer, {
+    ...DEFAULT_STATE,
+    clientId,
+    roomId,
+  });
+
+  const dispatch = useCallback(
+    (action: AppAction) => {
+      handleRealtime(state, action);
+      dispatchBase(action);
+    },
+    [state, dispatchBase, handleRealtime]
+  );
+
+  useEffect(() => {
+    if (!localStorage.getItem("clientId")) {
+      localStorage.setItem("clientId", crypto.randomUUID());
+    }
+  }, []);
 
   return (
     <AppContext.Provider
       value={{
-        state,
+        state: { ...state },
         dispatch,
       }}
     >
@@ -123,92 +149,15 @@ function reducer(state: AppState, action: AppAction): AppState {
   }
 
   if (action.type === "START_CREATING_SHAPE") {
-    const { x, y } = action;
-    let newShape: ShapeData | null = null;
-
-    const id = crypto.randomUUID();
-
-    switch (state.currentTool.id) {
-      case "rectangle":
-        const rectangleIndex =
-          state.shapes.filter((shape) => shape.type === "rectangle").length + 1;
-
-        newShape = {
-          type: "rectangle",
-          id,
-          name: `Rectangle ${rectangleIndex}`,
-          x,
-          y,
-          fill,
-          width: 0,
-          height: 0,
-        };
-        break;
-      case "ellipse":
-        const ellipseIndex =
-          state.shapes.filter((shape) => shape.type === "ellipse").length + 1;
-
-        newShape = {
-          type: "ellipse",
-          id,
-          name: `Ellipse ${ellipseIndex}`,
-          x,
-          y,
-          fill,
-          width: 0,
-          height: 0,
-        };
-        break;
-      case "text":
-        newShape = {
-          type: "text",
-          id,
-          name: "",
-          x,
-          y,
-          fill,
-          text: "",
-          fontSize,
-          fontFamily,
-          fontStyle,
-          letterSpacing,
-          lineHeight,
-          textDecoration,
-        };
-        break;
-      default:
-        break;
-    }
-
     return {
       ...state,
-      pendingShapeId: newShape ? newShape.id : null,
-      shapes: newShape ? [...state.shapes, newShape] : state.shapes,
-      selectedShapes: newShape ? [id] : state.selectedShapes,
+      pendingShapeId: action.newShape.id,
+      shapes: [...state.shapes, action.newShape],
+      shapesSelectedByClientId: {
+        ...state.shapesSelectedByClientId,
+        [state.clientId]: [action.newShape.id],
+      },
     };
-  }
-
-  if (action.type === "SCALE_PENDING_SHAPE") {
-    if (!state.pendingShapeId) return state;
-
-    const { dx, dy } = action;
-
-    const updatedShapes = state.shapes.map((shape) => {
-      if (shape.id === state.pendingShapeId) {
-        switch (shape.type) {
-          case "rectangle":
-            return { ...shape, width: dx, height: dy };
-          case "ellipse":
-            return { ...shape, width: Math.abs(dx), height: Math.abs(dy) };
-          default:
-            return shape;
-        }
-      }
-
-      return shape;
-    });
-
-    return { ...state, shapes: updatedShapes };
   }
 
   if (action.type === "CONFIRM_PENDING_SHAPE") {
@@ -216,7 +165,10 @@ function reducer(state: AppState, action: AppAction): AppState {
       ...state,
       pendingShapeId: null,
       currentTool: APP_TOOLS.MOVE,
-      selectedShapes: state.pendingShapeId ? [state.pendingShapeId] : [],
+      shapesSelectedByClientId: {
+        ...state.shapesSelectedByClientId,
+        [state.clientId]: state.pendingShapeId ? [state.pendingShapeId] : [],
+      },
     };
   }
 
@@ -230,23 +182,55 @@ function reducer(state: AppState, action: AppAction): AppState {
 
   if (action.type === "TOGGLE_SELECT") {
     const { multiSelectEnabled, shapeId } = action;
+    const selectedShapes = state.shapesSelectedByClientId[state.clientId];
+
+    if (!selectedShapes) {
+      return {
+        ...state,
+        shapesSelectedByClientId: {
+          ...state.shapesSelectedByClientId,
+          [state.clientId]: [shapeId],
+        },
+      };
+    }
 
     if (multiSelectEnabled) {
-      if (state.selectedShapes.includes(shapeId)) {
+      if (selectedShapes.includes(shapeId)) {
         return {
           ...state,
-          selectedShapes: state.selectedShapes.filter((id) => id !== shapeId),
+          shapesSelectedByClientId: {
+            ...state.shapesSelectedByClientId,
+            [state.clientId]: selectedShapes.filter((id) => id !== shapeId),
+          },
         };
       }
 
-      return { ...state, selectedShapes: [...state.selectedShapes, shapeId] };
+      return {
+        ...state,
+        shapesSelectedByClientId: {
+          ...state.shapesSelectedByClientId,
+          [state.clientId]: [...selectedShapes, shapeId],
+        },
+      };
     }
 
-    return { ...state, selectedShapes: [shapeId] };
+    return {
+      ...state,
+      shapesSelectedByClientId: {
+        ...state.shapesSelectedByClientId,
+        [state.clientId]: [shapeId],
+      },
+    };
   }
 
   if (action.type === "UNSELECT_ALL") {
-    return { ...state, selectedShapes: [] };
+    return {
+      ...state,
+      shapesSelectedByClientId: {
+        ...state.shapesSelectedByClientId,
+        [state.clientId]: [],
+      },
+    };
   }
 
   if (action.type === "CHANGE_SCALE") {
@@ -257,10 +241,12 @@ function reducer(state: AppState, action: AppAction): AppState {
   }
 
   if (action.type === "MOVE") {
+    const selectedShapes = state.shapesSelectedByClientId[state.clientId];
+
     return {
       ...state,
       shapes: state.shapes.map((shape) => {
-        if (state.selectedShapes.includes(shape.id)) {
+        if (selectedShapes.includes(shape.id)) {
           return { ...shape, x: action.x || shape.x, y: action.y || shape.y };
         }
 
@@ -270,12 +256,12 @@ function reducer(state: AppState, action: AppAction): AppState {
   }
 
   if (action.type === "CHANGE_COLOR") {
-    if (state.selectedShapes.length === 0) return state;
+    const selectedShapes = state.shapesSelectedByClientId[state.clientId];
 
     return {
       ...state,
       shapes: state.shapes.map((shape) => {
-        if (state.selectedShapes.includes(shape.id)) {
+        if (selectedShapes.includes(shape.id)) {
           return { ...shape, fill: action.color };
         }
 
@@ -285,12 +271,12 @@ function reducer(state: AppState, action: AppAction): AppState {
   }
 
   if (action.type === "CHANGE_STROKE") {
-    if (state.selectedShapes.length === 0) return state;
+    const selectedShapes = state.shapesSelectedByClientId[state.clientId];
 
     return {
       ...state,
       shapes: state.shapes.map((shape) => {
-        if (state.selectedShapes.includes(shape.id)) {
+        if (selectedShapes.includes(shape.id)) {
           return { ...shape, stroke: action.color, strokeWidth: action.width };
         }
 
@@ -312,29 +298,56 @@ function reducer(state: AppState, action: AppAction): AppState {
     };
   }
 
+  if (action.type === "DELETE") {
+    const selectedShapes = state.shapesSelectedByClientId[state.clientId];
+
+    return {
+      ...state,
+      shapes: state.shapes.filter((shape) =>
+        action.shapeId
+          ? shape.id !== action.shapeId
+          : !selectedShapes.includes(shape.id)
+      ),
+      shapesSelectedByClientId: {
+        ...state.shapesSelectedByClientId,
+        [state.clientId]: [],
+      },
+    };
+  }
+
+  if (action.type === "SYNC_SHAPES") {
+    return {
+      ...state,
+      shapes: action.shapes,
+    };
+  }
+
+  if (action.type === "SYNC_SELECTED_SHAPES") {
+    return {
+      ...state,
+      shapesSelectedByClientId: action.shapesSelectedByClientId,
+    };
+  }
+
+  if (action.type === "SYNC_PARTICIPANTS") {
+    return {
+      ...state,
+      participants: action.participants,
+    };
+  }
+
   if (action.type === "RESIZE") {
+    const selectedShapes = state.shapesSelectedByClientId[state.clientId];
+
     return {
       ...state,
       shapes: state.shapes.map((shape) => {
-        if (state.selectedShapes.includes(shape.id)) {
-          switch (shape.type) {
-            case "rectangle":
-              return {
-                ...shape,
-                width: action.width || shape.width,
-                height: action.height || shape.height,
-              };
-            case "ellipse":
-              return {
-                ...shape,
-                width: action.width || shape.width,
-                height: action.height || shape.height,
-                offsetX: action.width ? -action.width / 2 : shape.offsetX,
-                offsetY: action.height ? -action.height / 2 : shape.offsetY,
-              };
-            default:
-              return shape;
-          }
+        if (selectedShapes.includes(shape.id) && shape.type !== "text") {
+          return {
+            ...shape,
+            width: action.width || shape.width,
+            height: action.height || shape.height,
+          };
         }
 
         return shape;
@@ -342,15 +355,16 @@ function reducer(state: AppState, action: AppAction): AppState {
     };
   }
 
-  if (action.type === "DELETE") {
+  if (action.type === "UPDATE_CURSOR_POSITION") {
     return {
       ...state,
-      shapes: state.shapes.filter((shape) =>
-        action.shapeId
-          ? shape.id !== action.shapeId
-          : !state.selectedShapes.includes(shape.id)
-      ),
-      selectedShapes: [],
+      participants: state.participants.map((p) => {
+        if (p.clientId === state.clientId) {
+          return { ...p, cursorPosition: action.cursorPosition };
+        }
+
+        return p;
+      }),
     };
   }
 

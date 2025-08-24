@@ -1,3 +1,5 @@
+import type { Vector2d } from "konva/lib/types";
+
 export type Tool = {
   id: "move" | "ellipse" | "rectangle" | "text";
   shortcut?: string;
@@ -35,3 +37,10 @@ export type ShapeData = {
       textDecoration: string;
     }
 );
+
+export type Participant = {
+  clientId: string;
+  color?: string;
+  joinedAt: number;
+  cursorPosition: Vector2d | null;
+};

@@ -10,6 +10,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@radix-ui/react-avatar": "^1.1.10",
     "@radix-ui/react-dialog": "^1.1.14",
     "@radix-ui/react-menubar": "^1.1.15",
     "@radix-ui/react-popover": "^1.1.14",
@@ -17,20 +18,29 @@
     "@radix-ui/react-slot": "^1.2.3",
     "@radix-ui/react-tooltip": "^1.2.7",
     "@tailwindcss/vite": "^4.1.11",
+    "@tanstack/react-router": "^1.131.26",
+    "@tanstack/react-router-devtools": "^1.131.26",
     "@types/node": "^24.2.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "fast-equals": "^5.2.2",
     "konva": "^9.3.22",
     "lucide-react": "^0.539.0",
     "react": "^19.1.1",
     "react-colorful": "^5.6.1",
     "react-dom": "^19.1.1",
     "react-konva": "^19.0.7",
+    "react-konva-utils": "^1.1.2",
+    "react-yjs": "^2.0.1",
     "tailwind-merge": "^3.3.1",
-    "tailwindcss": "^4.1.11"
+    "tailwindcss": "^4.1.11",
+    "y-protocols": "^1.0.6",
+    "y-websocket": "^3.0.0",
+    "yjs": "^13.6.27"
   },
   "devDependencies": {
     "@eslint/js": "^9.32.0",
+    "@tanstack/router-plugin": "^1.131.26",
     "@types/react": "^19.1.9",
     "@types/react-dom": "^19.1.7",
     "@vitejs/plugin-react": "^4.7.0",

@@ -17,9 +17,11 @@ import type { ShapeData } from "@/types";
 
 export function LayersSidebar() {
   const {
-    state: { shapes, selectedShapes },
+    state: { shapes, shapesSelectedByClientId, clientId },
     dispatch,
   } = useAppContext();
+
+  const selectedShapes = shapesSelectedByClientId[clientId] || [];
 
   return (
     <Sidebar side="left" className="w-[15rem]">
@@ -29,7 +31,7 @@ export function LayersSidebar() {
 
           <ul className="flex flex-col mt-2 gap-2 ml-2">
             {shapes.toReversed().map((shape) => (
-              <li className="text-xs">
+              <li className="text-xs" key={shape.id}>
                 <LayerButton
                   shape={shape}
                   active={selectedShapes.includes(shape.id)}
