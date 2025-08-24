@@ -39,11 +39,6 @@ export function RealtimeManager() {
     const awarenessObserver = () => {
       if (!awareness) return;
 
-      console.log(
-        "Awareness changed",
-        Array.from(awareness.getStates().values())
-      );
-
       const participants = Array.from(
         Array.from(awareness.getStates().values())
       ) as Participant[];
