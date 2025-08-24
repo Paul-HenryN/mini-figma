@@ -2,7 +2,6 @@ import { useEffect, useRef } from "react";
 import { Stage, Layer, Transformer } from "react-konva";
 import { useAppContext } from "../context";
 import type Konva from "konva";
-import { cx } from "class-variance-authority";
 import { DEFAULT_COLOR, UI_COLOR, ZOOM_FACTOR } from "../const";
 import { Shape } from "./Shape";
 import { PendingTextInput } from "./PendingTextInput";
@@ -163,12 +162,24 @@ export function Canvas() {
       shapeId: node.id(),
       data: { x: updatedX, y: updatedY },
     });
+
+    const pointerPos = stageRef.current?.getRelativePointerPosition();
+    if (!pointerPos) return;
+
+    dispatch({
+      type: "UPDATE_CURSOR_POSITION",
+      cursorPosition: pointerPos,
+    });
   };
 
   const handleMouseUp = () => {
     if (pendingShape && pendingShape.type !== "text") {
       dispatch({ type: "CONFIRM_PENDING_SHAPE" });
     }
+  };
+
+  const handleMouseLeave = () => {
+    dispatch({ type: "UPDATE_CURSOR_POSITION", cursorPosition: null });
   };
 
   useEffect(() => {
@@ -245,11 +256,12 @@ export function Canvas() {
         height={window.innerHeight}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
+        onMouseLeave={handleMouseLeave}
         onWheel={handleWheel}
         onMouseUp={handleMouseUp}
         draggable={isPanning}
         ref={stageRef}
-        className={cx("cursor-none")}
+        className={"cursor-none"}
       >
         <Layer ref={layerRef}>
           {shapes.map((shape) => (
@@ -292,7 +304,7 @@ export function Canvas() {
                 rotateEnabled={isCurrentClient}
                 enabledAnchors={isCurrentClient ? undefined : []}
                 borderStroke={isCurrentClient ? UI_COLOR : participant?.color}
-                anchorStroke={isCurrentClient ? UI_COLOR : participant?.color}
+                anchorStroke={UI_COLOR}
                 anchorSize={15}
               />
             );
