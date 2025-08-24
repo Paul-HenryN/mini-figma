@@ -282,7 +282,8 @@ export function Canvas() {
               onTransform={handleTransform}
               draggable={
                 shapesSelectedByClientId[clientId]?.includes(shape.id) &&
-                currentTool.id === "move"
+                currentTool.id === "move" &&
+                !isPanning
               }
               stopPropagation={currentTool.id === "move" && !isPanning}
               onDragMove={handleDragMove}
