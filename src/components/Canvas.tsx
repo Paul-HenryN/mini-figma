@@ -1,12 +1,12 @@
 import { useEffect, useRef } from "react";
 import { Stage, Layer, Transformer } from "react-konva";
-import { useAppContext } from "../context";
 import type Konva from "konva";
 import { DEFAULT_COLOR, UI_COLOR, ZOOM_FACTOR } from "../const";
 import { Shape } from "./Shape";
 import { PendingTextInput } from "./PendingTextInput";
 import type { ShapeData, Tool } from "@/types";
 import { ParticipantCursor } from "./ParticipantCursor";
+import { useStore } from "@/store";
 
 const fill = DEFAULT_COLOR;
 const fontSize = 24;
@@ -17,53 +17,36 @@ const letterSpacing = 0;
 const textDecoration = "";
 
 export function Canvas() {
-  const {
-    state: {
-      shapes,
-      shapesSelectedByClientId,
-      pendingShapeId,
-      scale,
-      isPanning,
-      currentTool,
-      clientId,
-      participants,
-    },
-    dispatch,
-  } = useAppContext();
+  const state = useStore();
 
   const stageRef = useRef<Konva.Stage>(null);
   const transformerRefs = useRef<(Konva.Transformer | null)[]>([]);
   const layerRef = useRef<Konva.Layer>(null);
-  const pendingShape = shapes.find((shape) => shape.id === pendingShapeId);
+
+  const pendingShape = state.shapes.find(
+    (shape) => shape.id === state.pendingShapeId
+  );
 
   const handleMouseDown = () => {
     if (!stageRef.current) return;
-    if (isPanning) return;
+    if (state.isPanning) return;
 
-    const pointerPos = stageRef.current.getPointerPosition();
+    const pointerPos = stageRef.current.getRelativePointerPosition();
     if (!pointerPos) return;
 
-    const transform = stageRef.current.getAbsoluteTransform().copy().invert();
-    const pos = transform.point(pointerPos);
-
     const newShape = initializeShape({
-      currentToolId: currentTool.id,
-      shapes: shapes,
-      initX: pos.x,
-      initY: pos.y,
+      currentToolId: state.currentTool.id,
+      shapes: state.shapes,
+      initX: pointerPos.x,
+      initY: pointerPos.y,
     });
 
     if (newShape && !pendingShape) {
-      dispatch({
-        type: "START_CREATING_SHAPE",
-        newShape,
-      });
+      state.addShape(newShape);
     }
 
-    if (currentTool.id === "move") {
-      dispatch({
-        type: "UNSELECT_ALL",
-      });
+    if (state.currentTool.id === "move") {
+      state.unselectAll();
     }
   };
 
@@ -72,34 +55,26 @@ export function Canvas() {
 
     const pointerPos = stageRef.current.getRelativePointerPosition();
 
-    dispatch({
-      type: "UPDATE_CURSOR_POSITION",
-      cursorPosition: pointerPos,
-    });
+    state.updateLocalCursorPosition(pointerPos);
 
     if (!pointerPos || !pendingShape) return;
 
     const dx = pointerPos.x - pendingShape.x;
     const dy = pointerPos.y - pendingShape.y;
 
-    const resizedShape = getResizedShape({
-      shape: pendingShape,
-      newWidth: dx,
-      newHeight: dy,
-    });
-
-    dispatch({
-      type: "UPDATE_SHAPE",
-      shapeId: pendingShape.id,
-      data: resizedShape,
+    state.resizeShapes([pendingShape.id], {
+      width: dx,
+      height: dy,
     });
   };
 
   const handleWheel = (e: Konva.KonvaEventObject<WheelEvent>) => {
     e.evt.preventDefault();
+
     const newScale =
-      e.evt.deltaY < 0 ? scale * ZOOM_FACTOR : scale / ZOOM_FACTOR;
-    dispatch({ type: "CHANGE_SCALE", scale: newScale });
+      e.evt.deltaY < 0 ? state.scale * ZOOM_FACTOR : state.scale / ZOOM_FACTOR;
+
+    state.changeScale(newScale);
   };
 
   const handleTransform = (e: Konva.KonvaEventObject<Event>) => {
@@ -121,31 +96,23 @@ export function Canvas() {
       node.offsetX(-updatedWith / 2);
       node.offsetY(-updatedHeight / 2);
 
-      dispatch({
-        type: "UPDATE_SHAPE",
-        shapeId: node.id(),
-        data: {
-          x: updatedX,
-          y: updatedY,
-          width: updatedWith,
-          height: updatedHeight,
-          offsetX: -updatedWith / 2,
-          offsetY: -updatedHeight / 2,
-        },
+      state.syncShapeData(node.id(), {
+        x: updatedX,
+        y: updatedY,
+        width: updatedWith,
+        height: updatedHeight,
+        offsetX: -updatedWith / 2,
+        offsetY: -updatedHeight / 2,
       });
 
       return;
     }
 
-    dispatch({
-      type: "UPDATE_SHAPE",
-      shapeId: node.id(),
-      data: {
-        x: updatedX,
-        y: updatedY,
-        width: updatedWith,
-        height: updatedHeight,
-      },
+    state.syncShapeData(node.id(), {
+      x: updatedX,
+      y: updatedY,
+      width: updatedWith,
+      height: updatedHeight,
     });
   };
 
@@ -158,29 +125,22 @@ export function Canvas() {
     node.x(updatedX);
     node.y(updatedY);
 
-    dispatch({
-      type: "UPDATE_SHAPE",
-      shapeId: node.id(),
-      data: { x: updatedX, y: updatedY },
-    });
+    state.syncShapeData(node.id(), { x: updatedX, y: updatedY });
 
     const pointerPos = stageRef.current?.getRelativePointerPosition();
     if (!pointerPos) return;
 
-    dispatch({
-      type: "UPDATE_CURSOR_POSITION",
-      cursorPosition: pointerPos,
-    });
+    state.updateLocalCursorPosition(pointerPos);
   };
 
   const handleMouseUp = () => {
     if (pendingShape && pendingShape.type !== "text") {
-      dispatch({ type: "CONFIRM_PENDING_SHAPE" });
+      state.confirmPendingShape();
     }
   };
 
   const handleMouseLeave = () => {
-    dispatch({ type: "UPDATE_CURSOR_POSITION", cursorPosition: null });
+    state.updateLocalCursorPosition(null);
   };
 
   useEffect(() => {
@@ -196,26 +156,35 @@ export function Canvas() {
       y: (pointerPos.y - stageRef.current.y()) / oldScale,
     };
 
-    stageRef.current.scale({ x: scale, y: scale });
+    stageRef.current.scale({ x: state.scale, y: state.scale });
 
     const newPos = {
-      x: pointerPos.x - mousePointTo.x * scale,
-      y: pointerPos.y - mousePointTo.y * scale,
+      x: pointerPos.x - mousePointTo.x * state.scale,
+      y: pointerPos.y - mousePointTo.y * state.scale,
     };
 
     stageRef.current.position(newPos);
-  }, [scale]);
+  }, [state.scale]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (pendingShapeId) return;
+      if (state.pendingShapeId) return;
 
-      if (e.key === " ") dispatch({ type: "ENABLE_PANNING" });
+      if (e.key === " ") state.setPanning(true);
 
-      if (e.key === "Backspace") dispatch({ type: "DELETE" });
+      if (e.key === "Backspace") {
+        if (!state.currentParticipantId) return;
+
+        const selectedShapeIds =
+          state.selectedShapeIds[state.currentParticipantId];
+
+        if (!selectedShapeIds || selectedShapeIds.length === 0) return;
+
+        state.deleteShapes(selectedShapeIds);
+      }
     };
     const handleKeyUp = (e: KeyboardEvent) => {
-      if (e.key === " ") dispatch({ type: "DISABLE_PANNING" });
+      if (e.key === " ") state.setPanning(false);
     };
 
     window.addEventListener("keydown", handleKeyDown);
@@ -224,14 +193,18 @@ export function Canvas() {
       window.removeEventListener("keydown", handleKeyDown);
       window.removeEventListener("keyup", handleKeyUp);
     };
-  }, [pendingShapeId]);
+  }, [
+    state.pendingShapeId,
+    state.currentParticipantId,
+    state.selectedShapeIds,
+  ]);
 
   useEffect(() => {
     transformerRefs.current = transformerRefs.current.slice(
       0,
-      Object.keys(shapesSelectedByClientId).length
+      Object.keys(state.selectedShapeIds).length
     );
-  }, [shapesSelectedByClientId]);
+  }, [Object.keys(state.selectedShapeIds).length]);
 
   useEffect(() => {
     if (!layerRef.current) return;
@@ -239,16 +212,20 @@ export function Canvas() {
     transformerRefs.current.forEach((transformer, i) => {
       if (!transformer || !layerRef.current) return;
 
-      const selectedShapes = Object.values(shapesSelectedByClientId)[i] || [];
+      const selectedShapeIds = Object.values(state.selectedShapeIds)[i];
 
       const selectedNodes = layerRef.current.children.filter((child) => {
         const id = child.getAttrs().id;
-        return id && selectedShapes.includes(id);
+        return id && selectedShapeIds.includes(id);
       });
 
       transformer.nodes(selectedNodes);
     });
-  }, [shapesSelectedByClientId]);
+  }, [state.selectedShapeIds]);
+
+  useEffect(() => {
+    console.log(state.cursorPositions);
+  }, [state.cursorPositions]);
 
   return (
     <>
@@ -260,40 +237,50 @@ export function Canvas() {
         onMouseLeave={handleMouseLeave}
         onWheel={handleWheel}
         onMouseUp={handleMouseUp}
-        draggable={isPanning}
+        draggable={state.isPanning}
         ref={stageRef}
         className={"cursor-none"}
       >
         <Layer ref={layerRef}>
-          {shapes.map((shape) => (
-            <Shape
-              key={shape.id}
-              data={shape}
-              isPending={pendingShapeId === shape.id}
-              onClick={(e) => {
-                if (currentTool.id === "move" && !isPanning) {
-                  dispatch({
-                    type: "TOGGLE_SELECT",
-                    shapeId: shape.id,
-                    multiSelectEnabled: e.evt.shiftKey,
-                  });
-                }
-              }}
-              onTransform={handleTransform}
-              draggable={
-                shapesSelectedByClientId[clientId]?.includes(shape.id) &&
-                currentTool.id === "move" &&
-                !isPanning
-              }
-              stopPropagation={currentTool.id === "move" && !isPanning}
-              onDragMove={handleDragMove}
-            />
-          ))}
+          {state.shapes.map((shape) => {
+            const isSelected =
+              state.currentParticipantId !== null &&
+              state.selectedShapeIds[state.currentParticipantId].includes(
+                shape.id
+              );
 
-          {Object.keys(shapesSelectedByClientId).map((selectingclientId, i) => {
-            const isCurrentClient = selectingclientId === clientId;
-            const participant = participants.find(
-              (p) => p.clientId === selectingclientId
+            const isDraggable =
+              isSelected && !state.isPanning && state.currentTool.id === "move";
+
+            return (
+              <Shape
+                key={shape.id}
+                data={shape}
+                isPending={state.pendingShapeId === shape.id}
+                onClick={(e) => {
+                  if (state.currentTool.id === "move" && !state.isPanning) {
+                    state.toggleSelectShape(shape.id, {
+                      isMultiSelect: e.evt.shiftKey,
+                    });
+                  }
+                }}
+                onTransform={handleTransform}
+                draggable={isDraggable}
+                stopPropagation={
+                  state.currentTool.id === "move" && !state.isPanning
+                }
+                onDragMove={handleDragMove}
+              />
+            );
+          })}
+
+          {Object.keys(state.selectedShapeIds).map((selectingclientId, i) => {
+            const isCurrentClient =
+              state.currentParticipantId !== null &&
+              selectingclientId === state.currentParticipantId;
+
+            const participant = state.participants.find(
+              (p) => p.id === selectingclientId
             );
 
             return (
@@ -313,10 +300,7 @@ export function Canvas() {
                     stageRef.current?.getRelativePointerPosition();
                   if (!pointerPos) return;
 
-                  dispatch({
-                    type: "UPDATE_CURSOR_POSITION",
-                    cursorPosition: pointerPos,
-                  });
+                  state.updateLocalCursorPosition(pointerPos);
                 }}
               />
             );
@@ -324,14 +308,16 @@ export function Canvas() {
         </Layer>
       </Stage>
 
-      {participants.map(
+      {state.participants.map(
         (participant) =>
           stageRef.current && (
             <ParticipantCursor
-              key={participant.clientId}
+              key={participant.id}
               participant={participant}
               stage={stageRef.current}
-              isCurrentParticipant={participant.clientId === clientId}
+              isCurrentParticipant={
+                participant.id === state.currentParticipantId
+              }
             />
           )
       )}
@@ -341,13 +327,9 @@ export function Canvas() {
           textShape={pendingShape}
           stage={stageRef.current}
           onTextChange={(text) =>
-            dispatch({
-              type: "UPDATE_SHAPE",
-              shapeId: pendingShape.id,
-              data: { text, name: text },
-            })
+            state.syncShapeData(pendingShape.id, { text, name: text })
           }
-          OnBlur={() => dispatch({ type: "CONFIRM_PENDING_SHAPE" })}
+          OnBlur={() => state.confirmPendingShape()}
         />
       )}
     </>
@@ -403,6 +385,8 @@ function initializeShape({
         name: "",
         x: initX,
         y: initY,
+        width: 0,
+        height: 0,
         fill,
         text: "",
         fontSize,
@@ -414,34 +398,5 @@ function initializeShape({
       };
     default:
       return null;
-  }
-}
-
-function getResizedShape({
-  shape,
-  newWidth,
-  newHeight,
-}: {
-  shape: ShapeData;
-  newWidth: number;
-  newHeight: number;
-}): ShapeData {
-  switch (shape.type) {
-    case "rectangle":
-      return {
-        ...shape,
-        width: newWidth,
-        height: newHeight,
-      };
-    case "ellipse":
-      return {
-        ...shape,
-        width: Math.abs(newWidth),
-        height: Math.abs(newHeight),
-        offsetX: newWidth ? -newWidth / 2 : shape.offsetX,
-        offsetY: newHeight ? -newHeight / 2 : shape.offsetY,
-      };
-    default:
-      return shape;
   }
 }

@@ -1,4 +1,7 @@
-import type { Vector2d } from "konva/lib/types";
+export type User = {
+  id: string;
+  name: string;
+};
 
 export type Tool = {
   id: "move" | "ellipse" | "rectangle" | "text";
@@ -15,16 +18,14 @@ export type ShapeData = {
   strokeWidth?: number;
   offsetX?: number;
   offsetY?: number;
+  width: number;
+  height: number;
 } & (
   | {
       type: "rectangle";
-      width: number;
-      height: number;
     }
   | {
       type: "ellipse";
-      width: number;
-      height: number;
     }
   | {
       type: "text";
@@ -39,8 +40,7 @@ export type ShapeData = {
 );
 
 export type Participant = {
-  clientId: string;
+  id: string;
   color?: string;
   joinedAt: number;
-  cursorPosition: Vector2d | null;
 };

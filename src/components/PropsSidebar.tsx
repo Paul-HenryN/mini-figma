@@ -18,7 +18,6 @@ import {
   SidebarSeparator,
   SidebarSubGroupTitle,
 } from "./ui/sidebar";
-import { useAppContext } from "../context";
 import {
   DEFAULT_COLOR,
   DEFAULT_STROKE_COLOR,
@@ -32,17 +31,8 @@ import { ColorInput } from "./ColorInput";
 import { NumberInput } from "./NumberInput";
 import { Avatar, AvatarFallback } from "./ui/avatar";
 import { cn } from "@/lib/utils";
-
-function getShapeLabel(shapeType: ShapeData["type"]) {
-  switch (shapeType) {
-    case "ellipse":
-      return "Ellipse";
-    case "rectangle":
-      return "Rectangle";
-    case "text":
-      return "Text";
-  }
-}
+import { useStore } from "@/store";
+import { useShallow } from "zustand/react/shallow";
 
 const ZOOM_OPTIONS: {
   label: string;
@@ -74,29 +64,35 @@ const ZOOM_OPTIONS: {
   },
 ] as const;
 
-export function PropsSidebar() {
-  const {
-    state: {
-      scale,
-      shapesSelectedByClientId,
-      shapes,
-      pendingShapeId,
-      clientId,
-      participants,
-    },
-    dispatch,
-  } = useAppContext();
+const fallbackSelectedShapeIds: ShapeData["id"][] = [];
 
-  const selectedShapes = shapesSelectedByClientId[clientId] || [];
-  const formattedScale = (100 * scale).toFixed(0);
+export function PropsSidebar() {
+  const state = useStore(
+    useShallow((state) => ({
+      shapes: state.shapes,
+      selectedShapeIds:
+        state.currentParticipantId &&
+        state.currentParticipantId in state.selectedShapeIds
+          ? state.selectedShapeIds[state.currentParticipantId]
+          : fallbackSelectedShapeIds,
+      scale: state.scale,
+      participants: state.participants,
+      currentParticipantId: state.currentParticipantId,
+      changeScale: state.changeScale,
+    }))
+  );
+
+  const formattedScale = (100 * state.scale).toFixed(0);
+  const currentParticipant = state.participants.find(
+    (p) => p.id === state.currentParticipantId
+  );
+  const selectedShapes = state.shapes.filter((shape) =>
+    state.selectedShapeIds.includes(shape.id)
+  );
 
   const getTitle = () => {
-    if (pendingShape) {
-      return getShapeLabel(pendingShape.type);
-    }
-
-    const selectedShapesData = shapes.filter((shape) =>
-      selectedShapes.includes(shape.id)
+    const selectedShapesData = state.shapes.filter((shape) =>
+      state.selectedShapeIds.includes(shape.id)
     );
 
     if (selectedShapesData.length === 0) {
@@ -109,9 +105,6 @@ export function PropsSidebar() {
 
     return `${selectedShapesData.length} selected`;
   };
-
-  const pendingShape = shapes.find((shape) => shape.id === pendingShapeId);
-  const currentParticipant = participants.find((p) => p.clientId === clientId);
 
   return (
     <Sidebar side="right">
@@ -127,10 +120,10 @@ export function PropsSidebar() {
               </li>
             )}
 
-            {participants
-              .filter((p) => p.clientId !== clientId)
+            {state.participants
+              .filter((p) => p.id !== state.currentParticipantId)
               .map((participant) => (
-                <li key={participant.clientId}>
+                <li key={participant.id}>
                   <ParticipantAvatar participant={participant} />
                 </li>
               ))}
@@ -148,10 +141,7 @@ export function PropsSidebar() {
                 {ZOOM_OPTIONS.map((option) => (
                   <MenubarItem
                     onClick={() =>
-                      dispatch({
-                        type: "CHANGE_SCALE",
-                        scale: option.handler(scale),
-                      })
+                      state.changeScale(option.handler(state.scale))
                     }
                   >
                     {option.label}
@@ -192,59 +182,30 @@ export function PropsSidebar() {
   );
 }
 
-function ParticipantAvatar({
-  participant,
-  className,
-  style,
-  isCurrentParticipant = false,
-}: {
-  participant: Participant;
-  className?: string;
-  style?: React.CSSProperties;
-  isCurrentParticipant?: boolean;
-}) {
-  return (
-    <Avatar
-      className={cn("size-6 text-white font-bold", className)}
-      style={style}
-    >
-      <AvatarFallback
-        style={{
-          backgroundColor: isCurrentParticipant ? UI_COLOR : participant.color,
-        }}
-      >
-        {participant.clientId.at(0)}
-      </AvatarFallback>
-    </Avatar>
-  );
-}
-
 function FillPropsGroup() {
-  const {
-    state: { shapes, shapesSelectedByClientId, pendingShapeId, clientId },
-    dispatch,
-  } = useAppContext();
+  const state = useStore(
+    useShallow((state) => ({
+      shapes: state.shapes,
+      selectedShapeIds:
+        state.currentParticipantId &&
+        state.currentParticipantId in state.selectedShapeIds
+          ? state.selectedShapeIds[state.currentParticipantId]
+          : fallbackSelectedShapeIds,
+      changeShapesColor: state.changeShapesColor,
+    }))
+  );
 
-  const pendingShape = shapes.find((shape) => shape.id === pendingShapeId);
-  const selectedShapes = shapesSelectedByClientId[clientId];
+  const selectedShapes = state.shapes.filter((shape) =>
+    state.selectedShapeIds.includes(shape.id)
+  );
 
   const getCurrentFill = () => {
-    if (pendingShape) {
-      return pendingShape.fill;
-    }
-
-    const selectedShapesData = shapes.filter((shape) =>
-      selectedShapes.includes(shape.id)
-    );
-
-    if (selectedShapesData.length === 0) return undefined;
+    if (selectedShapes.length === 0) return undefined;
 
     if (
-      selectedShapesData.every(
-        (shape) => shape.fill === selectedShapesData[0].fill
-      )
+      selectedShapes.every((shape) => shape.fill === selectedShapes[0].fill)
     ) {
-      return selectedShapesData[0].fill;
+      return selectedShapes[0].fill;
     }
 
     return "mixed";
@@ -262,7 +223,7 @@ function FillPropsGroup() {
             variant="ghost"
             size="icon"
             onClick={() =>
-              dispatch({ type: "CHANGE_COLOR", color: DEFAULT_COLOR })
+              state.changeShapesColor(state.selectedShapeIds, DEFAULT_COLOR)
             }
           >
             <PlusIcon className="size-4" />
@@ -281,7 +242,7 @@ function FillPropsGroup() {
               <ColorInput
                 color={currentFill}
                 onColorChange={(newColor) =>
-                  dispatch({ type: "CHANGE_COLOR", color: newColor })
+                  state.changeShapesColor(state.selectedShapeIds, newColor)
                 }
               />
 
@@ -289,7 +250,7 @@ function FillPropsGroup() {
                 variant="ghost"
                 size="icon"
                 onClick={() =>
-                  dispatch({ type: "CHANGE_COLOR", color: undefined })
+                  state.changeShapesColor(state.selectedShapeIds, undefined)
                 }
               >
                 <Trash2Icon className="size-4" />
@@ -303,27 +264,27 @@ function FillPropsGroup() {
 }
 
 function StrokePropsGroup() {
-  const {
-    state: { shapes, shapesSelectedByClientId, pendingShapeId, clientId },
-    dispatch,
-  } = useAppContext();
+  const state = useStore(
+    useShallow((state) => ({
+      shapes: state.shapes,
+      selectedShapeIds:
+        state.currentParticipantId &&
+        state.currentParticipantId in state.selectedShapeIds
+          ? state.selectedShapeIds[state.currentParticipantId]
+          : fallbackSelectedShapeIds,
+      changeShapesStroke: state.changeShapesStroke,
+    }))
+  );
 
-  const pendingShape = shapes.find((shape) => shape.id === pendingShapeId);
-  const selectedShapes = shapesSelectedByClientId[clientId];
+  const selectedShapes = state.shapes.filter((shape) =>
+    state.selectedShapeIds.includes(shape.id)
+  );
 
   const getCurrentStroke = () => {
-    if (pendingShape && pendingShape.stroke) {
-      return { color: pendingShape.stroke, width: pendingShape.strokeWidth };
-    }
+    if (selectedShapes.length === 0) return undefined;
 
-    const selectedShapesData = shapes.filter((shape) =>
-      selectedShapes.includes(shape.id)
-    );
-
-    if (selectedShapesData.length === 0) return undefined;
-
-    if (selectedShapesData.length === 1) {
-      const selectedShape = selectedShapesData[0];
+    if (selectedShapes.length === 1) {
+      const selectedShape = selectedShapes[0];
 
       if (!selectedShape.stroke) return undefined;
 
@@ -333,11 +294,11 @@ function StrokePropsGroup() {
       };
     }
 
-    const firstSelectedShape = selectedShapesData[0];
+    const firstSelectedShape = selectedShapes[0];
 
     if (
       firstSelectedShape.stroke &&
-      selectedShapesData.every(
+      selectedShapes.every(
         (shape) =>
           shape.stroke === firstSelectedShape.stroke &&
           shape.strokeWidth === firstSelectedShape.strokeWidth
@@ -349,7 +310,7 @@ function StrokePropsGroup() {
       };
     }
 
-    if (selectedShapesData.some((shape) => shape.stroke !== undefined)) {
+    if (selectedShapes.some((shape) => shape.stroke !== undefined)) {
       return "mixed";
     }
   };
@@ -366,11 +327,11 @@ function StrokePropsGroup() {
             variant="ghost"
             size="icon"
             onClick={() =>
-              dispatch({
-                type: "CHANGE_STROKE",
-                color: DEFAULT_STROKE_COLOR,
-                width: DEFAULT_STROKE_WIDTH,
-              })
+              state.changeShapesStroke(
+                state.selectedShapeIds,
+                DEFAULT_STROKE_COLOR,
+                DEFAULT_STROKE_WIDTH
+              )
             }
           >
             <PlusIcon className="size-4" />
@@ -389,11 +350,11 @@ function StrokePropsGroup() {
               <ColorInput
                 color={currentStroke.color}
                 onColorChange={(newColor) =>
-                  dispatch({
-                    type: "CHANGE_STROKE",
-                    color: newColor,
-                    width: currentStroke.width,
-                  })
+                  state.changeShapesStroke(
+                    state.selectedShapeIds,
+                    newColor,
+                    currentStroke.width
+                  )
                 }
               />
 
@@ -402,11 +363,11 @@ function StrokePropsGroup() {
                 value={currentStroke.width}
                 className="border-none flex-1/2"
                 onValueChange={(newValue) =>
-                  dispatch({
-                    type: "CHANGE_STROKE",
-                    color: currentStroke.color,
-                    width: Number(newValue),
-                  })
+                  state.changeShapesStroke(
+                    state.selectedShapeIds,
+                    currentStroke.color,
+                    Number(newValue)
+                  )
                 }
               />
 
@@ -414,11 +375,11 @@ function StrokePropsGroup() {
                 variant="ghost"
                 size="icon"
                 onClick={() =>
-                  dispatch({
-                    type: "CHANGE_STROKE",
-                    color: undefined,
-                    width: undefined,
-                  })
+                  state.changeShapesStroke(
+                    state.selectedShapeIds,
+                    undefined,
+                    undefined
+                  )
                 }
               >
                 <Trash2Icon className="size-4" />
@@ -432,34 +393,35 @@ function StrokePropsGroup() {
 }
 
 function LayoutPropsGroup() {
-  const {
-    state: { shapes, shapesSelectedByClientId, pendingShapeId, clientId },
-    dispatch,
-  } = useAppContext();
+  const state = useStore(
+    useShallow((state) => ({
+      shapes: state.shapes,
+      selectedShapeIds:
+        state.currentParticipantId &&
+        state.currentParticipantId in state.selectedShapeIds
+          ? state.selectedShapeIds[state.currentParticipantId]
+          : fallbackSelectedShapeIds,
+      currentParticipantId: state.currentParticipantId,
+      resizeShapes: state.resizeShapes,
+    }))
+  );
 
-  const pendingShape = shapes.find((shape) => shape.id === pendingShapeId);
-  const selectedShapes = shapesSelectedByClientId[clientId];
+  const selectedShapes = state.shapes.filter((shape) =>
+    state.selectedShapeIds.includes(shape.id)
+  );
 
   const getCurrentWidth = () => {
-    if (pendingShape) {
-      return getShapeDimensions(pendingShape).width;
+    if (selectedShapes.length === 0) return undefined;
+
+    if (selectedShapes.length === 1) {
+      return getShapeDimensions(selectedShapes[0]).width;
     }
 
-    const selectedShapesData = shapes.filter((shape) =>
-      selectedShapes.includes(shape.id)
-    );
-
-    if (selectedShapesData.length === 0) return undefined;
-
-    if (selectedShapesData.length === 1) {
-      return getShapeDimensions(selectedShapesData[0]).width;
-    }
-
-    const firstSelectedShape = selectedShapesData[0];
+    const firstSelectedShape = selectedShapes[0];
     const firstSelectedShapeDimensions = getShapeDimensions(firstSelectedShape);
 
     if (
-      selectedShapesData.every((shape) => {
+      selectedShapes.every((shape) => {
         const shapeDimensions = getShapeDimensions(shape);
         return shapeDimensions.width === firstSelectedShapeDimensions.width;
       })
@@ -471,25 +433,17 @@ function LayoutPropsGroup() {
   };
 
   const getCurrentHeight = () => {
-    if (pendingShape) {
-      return getShapeDimensions(pendingShape).height;
+    if (selectedShapes.length === 0) return undefined;
+
+    if (selectedShapes.length === 1) {
+      return getShapeDimensions(selectedShapes[0]).height;
     }
 
-    const selectedShapesData = shapes.filter((shape) =>
-      selectedShapes.includes(shape.id)
-    );
-
-    if (selectedShapesData.length === 0) return undefined;
-
-    if (selectedShapesData.length === 1) {
-      return getShapeDimensions(selectedShapesData[0]).height;
-    }
-
-    const firstSelectedShape = selectedShapesData[0];
+    const firstSelectedShape = selectedShapes[0];
     const firstSelectedShapeDimensions = getShapeDimensions(firstSelectedShape);
 
     if (
-      selectedShapesData.every((shape) => {
+      selectedShapes.every((shape) => {
         const shapeDimensions = getShapeDimensions(shape);
         return shapeDimensions.height === firstSelectedShapeDimensions.height;
       })
@@ -512,8 +466,7 @@ function LayoutPropsGroup() {
             value={getCurrentWidth()}
             min={0}
             onValueChange={(newValue) =>
-              dispatch({
-                type: "RESIZE",
+              state.resizeShapes(state.selectedShapeIds, {
                 width: newValue,
               })
             }
@@ -523,8 +476,7 @@ function LayoutPropsGroup() {
             value={getCurrentHeight()}
             min={0}
             onValueChange={(newValue) =>
-              dispatch({
-                type: "RESIZE",
+              state.resizeShapes(state.selectedShapeIds, {
                 height: newValue,
               })
             }
@@ -537,32 +489,32 @@ function LayoutPropsGroup() {
 }
 
 function PositionPropsGroup() {
-  const {
-    state: { shapes, pendingShapeId, shapesSelectedByClientId, clientId },
-    dispatch,
-  } = useAppContext();
+  const state = useStore(
+    useShallow((state) => ({
+      shapes: state.shapes,
+      selectedShapeIds:
+        state.currentParticipantId &&
+        state.currentParticipantId in state.selectedShapeIds
+          ? state.selectedShapeIds[state.currentParticipantId]
+          : fallbackSelectedShapeIds,
+      moveShapes: state.moveShapes,
+    }))
+  );
 
-  const pendingShape = shapes.find((shape) => shape.id === pendingShapeId);
-  const selectedShapes = shapesSelectedByClientId[clientId];
+  const selectedShapes = state.shapes.filter((shape) =>
+    state.selectedShapeIds.includes(shape.id)
+  );
 
   const getCurrentX = () => {
-    if (pendingShape) {
-      return pendingShape.x;
+    if (selectedShapes.length === 0) return undefined;
+
+    if (selectedShapes.length === 1) {
+      return selectedShapes[0].x;
     }
 
-    const selectedShapesData = shapes.filter((shape) =>
-      selectedShapes.includes(shape.id)
-    );
+    const firstSelectedShape = selectedShapes[0];
 
-    if (selectedShapesData.length === 0) return undefined;
-
-    if (selectedShapesData.length === 1) {
-      return selectedShapesData[0].x;
-    }
-
-    const firstSelectedShape = selectedShapesData[0];
-
-    if (selectedShapesData.every((shape) => shape.x === firstSelectedShape.x)) {
+    if (selectedShapes.every((shape) => shape.x === firstSelectedShape.x)) {
       return firstSelectedShape.x;
     }
 
@@ -570,23 +522,15 @@ function PositionPropsGroup() {
   };
 
   const getCurrentY = () => {
-    if (pendingShape) {
-      return pendingShape.y;
+    if (selectedShapes.length === 0) return undefined;
+
+    if (selectedShapes.length === 1) {
+      return selectedShapes[0].y;
     }
 
-    const selectedShapesData = shapes.filter((shape) =>
-      selectedShapes.includes(shape.id)
-    );
+    const firstSelectedShape = selectedShapes[0];
 
-    if (selectedShapesData.length === 0) return undefined;
-
-    if (selectedShapesData.length === 1) {
-      return selectedShapesData[0].y;
-    }
-
-    const firstSelectedShape = selectedShapesData[0];
-
-    if (selectedShapesData.every((shape) => shape.y === firstSelectedShape.y)) {
+    if (selectedShapes.every((shape) => shape.y === firstSelectedShape.y)) {
       return firstSelectedShape.y;
     }
 
@@ -604,27 +548,59 @@ function PositionPropsGroup() {
           <NumberInput
             value={getCurrentX()}
             onValueChange={(newValue) =>
-              dispatch({
-                type: "MOVE",
-                x: newValue,
-              })
+              state.moveShapes(state.selectedShapeIds, { x: newValue })
             }
-            placeholder="Width"
+            placeholder="X"
           />
           <NumberInput
             value={getCurrentY()}
             onValueChange={(newValue) =>
-              dispatch({
-                type: "MOVE",
-                y: newValue,
-              })
+              state.moveShapes(state.selectedShapeIds, { y: newValue })
             }
-            placeholder="Height"
+            placeholder="Y"
           />
         </div>
       </SidebarGroupContent>
     </SidebarGroup>
   );
+}
+
+function ParticipantAvatar({
+  participant,
+  className,
+  style,
+  isCurrentParticipant = false,
+}: {
+  participant: Participant;
+  className?: string;
+  style?: React.CSSProperties;
+  isCurrentParticipant?: boolean;
+}) {
+  return (
+    <Avatar
+      className={cn("size-6 text-white font-bold", className)}
+      style={style}
+    >
+      <AvatarFallback
+        style={{
+          backgroundColor: isCurrentParticipant ? UI_COLOR : participant.color,
+        }}
+      >
+        {participant.id.at(0)}
+      </AvatarFallback>
+    </Avatar>
+  );
+}
+
+function getShapeLabel(shapeType: ShapeData["type"]) {
+  switch (shapeType) {
+    case "ellipse":
+      return "Ellipse";
+    case "rectangle":
+      return "Rectangle";
+    case "text":
+      return "Text";
+  }
 }
 
 function getShapeDimensions(shape: ShapeData) {

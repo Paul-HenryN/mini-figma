@@ -42,6 +42,7 @@ export function Shape({
   if (data.type === "rectangle") {
     return <Rect {...data} {...otherProps} />;
   }
+
   if (data.type === "ellipse") {
     return (
       <Ellipse
@@ -52,8 +53,9 @@ export function Shape({
       />
     );
   }
-  if (data.type === "text") {
-    return !isPending ? <Text {...data} {...otherProps} /> : null;
+
+  if (data.type === "text" && !isPending) {
+    return <Text {...data} {...otherProps} />;
   }
 
   return null;

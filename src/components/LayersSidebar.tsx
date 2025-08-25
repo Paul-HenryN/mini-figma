@@ -12,16 +12,25 @@ import {
   SidebarGroup,
   SidebarGroupTitle,
 } from "./ui/sidebar";
-import { useAppContext } from "@/context";
 import type { ShapeData } from "@/types";
+import { useStore } from "@/store";
+import { useShallow } from "zustand/react/shallow";
+
+const fallbackSelectedShapeIds: ShapeData["id"][] = [];
 
 export function LayersSidebar() {
-  const {
-    state: { shapes, shapesSelectedByClientId, clientId },
-    dispatch,
-  } = useAppContext();
-
-  const selectedShapes = shapesSelectedByClientId[clientId] || [];
+  const state = useStore(
+    useShallow((state) => ({
+      shapes: state.shapes,
+      selectedShapeIds:
+        state.currentParticipantId &&
+        state.currentParticipantId in state.selectedShapeIds
+          ? state.selectedShapeIds[state.currentParticipantId]
+          : fallbackSelectedShapeIds,
+      toggleSelectShape: state.toggleSelectShape,
+      deleteShapes: state.deleteShapes,
+    }))
+  );
 
   return (
     <Sidebar side="left" className="w-[15rem]">
@@ -30,21 +39,23 @@ export function LayersSidebar() {
           <SidebarGroupTitle>Layers</SidebarGroupTitle>
 
           <ul className="flex flex-col mt-2 gap-2 ml-2">
-            {shapes.toReversed().map((shape) => (
+            {state.shapes.toReversed().map((shape) => (
               <li className="text-xs" key={shape.id}>
                 <LayerButton
                   shape={shape}
-                  active={selectedShapes.includes(shape.id)}
+                  active={state.selectedShapeIds.includes(shape.id)}
                   onClick={(e) =>
-                    dispatch({
-                      type: "TOGGLE_SELECT",
-                      shapeId: shape.id,
-                      multiSelectEnabled: e.shiftKey,
+                    state.toggleSelectShape(shape.id, {
+                      isMultiSelect: e.shiftKey,
                     })
                   }
-                  onDelete={() =>
-                    dispatch({ type: "DELETE", shapeId: shape.id })
-                  }
+                  onDelete={() => {
+                    if (state.selectedShapeIds.includes(shape.id)) {
+                      state.deleteShapes(state.selectedShapeIds);
+                    } else {
+                      state.deleteShapes([shape.id]);
+                    }
+                  }}
                 />
               </li>
             ))}
