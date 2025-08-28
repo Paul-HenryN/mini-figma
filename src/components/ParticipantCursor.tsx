@@ -4,7 +4,6 @@ import type { Participant } from "@/types";
 import type Konva from "konva";
 import { HandGrabIcon, HandIcon, MousePointer2Icon } from "lucide-react";
 import { useEffect, useState } from "react";
-import { useShallow } from "zustand/react/shallow";
 
 export function ParticipantCursor({
   participant,
@@ -15,11 +14,9 @@ export function ParticipantCursor({
   stage: Konva.Stage;
   isCurrentParticipant?: boolean;
 }) {
-  const state = useStore(
-    useShallow((state) => ({
-      cursorPosition: state.cursorPositions[participant.id],
-      isPanning: state.isPanning,
-    }))
+  const isPanning = useStore((state) => state.isPanning);
+  const cursorPosition = useStore(
+    (state) => state.cursorPositions[participant.id]
   );
 
   const [isMouseDown, setMouseDown] = useState(false);
@@ -42,17 +39,17 @@ export function ParticipantCursor({
     };
   }, []);
 
-  if (!state.cursorPosition) return null;
+  if (!cursorPosition) return null;
 
   const stageTransform = stage.getAbsoluteTransform().copy();
-  const { x, y } = stageTransform.point(state.cursorPosition);
+  const { x, y } = stageTransform.point(cursorPosition);
 
   const color = isCurrentParticipant ? UI_COLOR : participant.color;
 
   const getCursorIcon = () => {
     if (!isCurrentParticipant) return MousePointer2Icon;
-    if (isMouseDown && state.isPanning) return HandGrabIcon;
-    if (state.isPanning) return HandIcon;
+    if (isMouseDown && isPanning) return HandGrabIcon;
+    if (isPanning) return HandIcon;
 
     return MousePointer2Icon;
   };

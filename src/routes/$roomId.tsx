@@ -2,6 +2,7 @@ import { useAuth } from "@/auth-context";
 import { Canvas } from "@/components/Canvas";
 import { LayersSidebar } from "@/components/LayersSidebar";
 import { PropsSidebar } from "@/components/PropsSidebar";
+import { RealtimeManager } from "@/components/RealtimeManager";
 import { Toolbar } from "@/components/Toolbar";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { useStore } from "@/store";
@@ -20,7 +21,6 @@ function RouteComponent() {
       setCurrentParticipantId: state.setCurrentParticipantId,
       addParticipant: state.addParticipant,
       setRoomId: state.setRoomId,
-      participants: state.participants,
     }))
   );
 
@@ -34,11 +34,15 @@ function RouteComponent() {
   }, [user, roomId]);
 
   return (
-    <SidebarProvider>
-      <LayersSidebar />
-      <PropsSidebar />
-      <Canvas />
-      <Toolbar />
-    </SidebarProvider>
+    <>
+      <RealtimeManager />
+
+      <SidebarProvider>
+        <LayersSidebar />
+        <PropsSidebar />
+        <Canvas />
+        <Toolbar />
+      </SidebarProvider>
+    </>
   );
 }

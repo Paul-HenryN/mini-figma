@@ -7,6 +7,7 @@ import { PendingTextInput } from "./PendingTextInput";
 import type { ShapeData, Tool } from "@/types";
 import { ParticipantCursor } from "./ParticipantCursor";
 import { useStore } from "@/store";
+import { useShallow } from "zustand/react/shallow";
 
 const fill = DEFAULT_COLOR;
 const fontSize = 24;
@@ -17,7 +18,28 @@ const letterSpacing = 0;
 const textDecoration = "";
 
 export function Canvas() {
-  const state = useStore();
+  const state = useStore(
+    useShallow((state) => ({
+      shapes: state.shapes,
+      pendingShapeId: state.pendingShapeId,
+      currentTool: state.currentTool,
+      participants: state.participants,
+      selectedShapeIds: state.selectedShapeIds,
+      currentParticipantId: state.currentParticipantId,
+      isPanning: state.isPanning,
+      scale: state.scale,
+      updateLocalCursorPosition: state.updateLocalCursorPosition,
+      changeScale: state.changeScale,
+      syncShapeData: state.syncShapeData,
+      unselectAll: state.unselectAll,
+      toggleSelectShape: state.toggleSelectShape,
+      deleteShapes: state.deleteShapes,
+      resizeShapes: state.resizeShapes,
+      addShape: state.addShape,
+      confirmPendingShape: state.confirmPendingShape,
+      setPanning: state.setPanning,
+    }))
+  );
 
   const stageRef = useRef<Konva.Stage>(null);
   const transformerRefs = useRef<(Konva.Transformer | null)[]>([]);
@@ -223,10 +245,6 @@ export function Canvas() {
     });
   }, [state.selectedShapeIds]);
 
-  useEffect(() => {
-    console.log(state.cursorPositions);
-  }, [state.cursorPositions]);
-
   return (
     <>
       <Stage
@@ -245,7 +263,7 @@ export function Canvas() {
           {state.shapes.map((shape) => {
             const isSelected =
               state.currentParticipantId !== null &&
-              state.selectedShapeIds[state.currentParticipantId].includes(
+              state.selectedShapeIds[state.currentParticipantId]?.includes(
                 shape.id
               );
 
