@@ -15,13 +15,25 @@ import {
 import type { ShapeData } from "@/types";
 import { useStore } from "@/store";
 import { useShallow } from "zustand/react/shallow";
+import { useStoreWithEqualityFn } from "zustand/traditional";
+import { deepEqual } from "fast-equals";
 
 const fallbackSelectedShapeIds: ShapeData["id"][] = [];
 
 export function LayersSidebar() {
-  const state = useStore(
+  const shapes = useStoreWithEqualityFn(
+    useStore,
+    (state) =>
+      state.shapes.map((shape) => ({
+        id: shape.id,
+        name: shape.name,
+        type: shape.type,
+      })),
+    deepEqual
+  );
+
+  const { selectedShapeIds, toggleSelectShape, deleteShapes } = useStore(
     useShallow((state) => ({
-      shapes: state.shapes,
       selectedShapeIds:
         state.currentParticipantId &&
         state.currentParticipantId in state.selectedShapeIds
@@ -39,21 +51,21 @@ export function LayersSidebar() {
           <SidebarGroupTitle>Layers</SidebarGroupTitle>
 
           <ul className="flex flex-col mt-2 gap-2 ml-2">
-            {state.shapes.toReversed().map((shape) => (
+            {shapes.toReversed().map((shape) => (
               <li className="text-xs" key={shape.id}>
                 <LayerButton
                   shape={shape}
-                  active={state.selectedShapeIds.includes(shape.id)}
+                  active={selectedShapeIds.includes(shape.id)}
                   onClick={(e) =>
-                    state.toggleSelectShape(shape.id, {
+                    toggleSelectShape(shape.id, {
                       isMultiSelect: e.shiftKey,
                     })
                   }
                   onDelete={() => {
-                    if (state.selectedShapeIds.includes(shape.id)) {
-                      state.deleteShapes(state.selectedShapeIds);
+                    if (selectedShapeIds.includes(shape.id)) {
+                      deleteShapes(selectedShapeIds);
                     } else {
-                      state.deleteShapes([shape.id]);
+                      deleteShapes([shape.id]);
                     }
                   }}
                 />
@@ -72,7 +84,7 @@ function LayerButton({
   onClick = () => {},
   onDelete = () => {},
 }: {
-  shape: ShapeData;
+  shape: Pick<ShapeData, "id" | "name" | "type">;
   active?: boolean;
   onClick?: (e: React.MouseEvent<HTMLButtonElement>) => void;
   onDelete?: () => void;

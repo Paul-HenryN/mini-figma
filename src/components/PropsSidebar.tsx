@@ -64,35 +64,23 @@ const ZOOM_OPTIONS: {
   },
 ] as const;
 
-const fallbackSelectedShapeIds: ShapeData["id"][] = [];
-
 export function PropsSidebar() {
   const state = useStore(
     useShallow((state) => ({
       shapes: state.shapes,
-      selectedShapeIds:
-        state.currentParticipantId &&
-        state.currentParticipantId in state.selectedShapeIds
-          ? state.selectedShapeIds[state.currentParticipantId]
-          : fallbackSelectedShapeIds,
-      scale: state.scale,
-      participants: state.participants,
-      currentParticipantId: state.currentParticipantId,
-      changeScale: state.changeScale,
+      selectedShapeIds: state.currentParticipantId
+        ? state.selectedShapeIds[state.currentParticipantId]
+        : null,
     }))
   );
 
-  const formattedScale = (100 * state.scale).toFixed(0);
-  const currentParticipant = state.participants.find(
-    (p) => p.id === state.currentParticipantId
-  );
   const selectedShapes = state.shapes.filter((shape) =>
-    state.selectedShapeIds.includes(shape.id)
+    state.selectedShapeIds?.includes(shape.id)
   );
 
   const getTitle = () => {
     const selectedShapesData = state.shapes.filter((shape) =>
-      state.selectedShapeIds.includes(shape.id)
+      state.selectedShapeIds?.includes(shape.id)
     );
 
     if (selectedShapesData.length === 0) {
@@ -109,51 +97,7 @@ export function PropsSidebar() {
   return (
     <Sidebar side="right">
       <SidebarContent>
-        <SidebarHeader className="py-5 flex-row gap-2 items-center">
-          <ul className="flex flex-wrap gap-1 group/participants">
-            {currentParticipant && (
-              <li>
-                <ParticipantAvatar
-                  participant={currentParticipant}
-                  isCurrentParticipant
-                />
-              </li>
-            )}
-
-            {state.participants
-              .filter((p) => p.id !== state.currentParticipantId)
-              .map((participant) => (
-                <li key={participant.id}>
-                  <ParticipantAvatar participant={participant} />
-                </li>
-              ))}
-          </ul>
-
-          <Menubar className="w-max ml-auto bg-transparent border-none">
-            <MenubarMenu>
-              <MenubarTrigger asChild>
-                <Button variant="ghost" className="text-xs">
-                  {formattedScale}% <ChevronDownIcon className="size-3" />
-                </Button>
-              </MenubarTrigger>
-
-              <MenubarContent className="z-200">
-                {ZOOM_OPTIONS.map((option) => (
-                  <MenubarItem
-                    onClick={() =>
-                      state.changeScale(option.handler(state.scale))
-                    }
-                  >
-                    {option.label}
-                    {option.shortcut && (
-                      <MenubarShortcut>{option.shortcut}</MenubarShortcut>
-                    )}
-                  </MenubarItem>
-                ))}
-              </MenubarContent>
-            </MenubarMenu>
-          </Menubar>
-        </SidebarHeader>
+        <PropsSidebarHeader />
 
         <SidebarSeparator />
 
@@ -182,21 +126,81 @@ export function PropsSidebar() {
   );
 }
 
+function PropsSidebarHeader() {
+  const state = useStore(
+    useShallow((state) => ({
+      scale: state.scale,
+      participants: state.participants,
+      currentParticipantId: state.currentParticipantId,
+      changeScale: state.changeScale,
+    }))
+  );
+
+  const formattedScale = (100 * state.scale).toFixed(0);
+  const currentParticipant = state.participants.find(
+    (p) => p.id === state.currentParticipantId
+  );
+
+  return (
+    <SidebarHeader className="py-5 flex-row gap-2 items-center">
+      <ul className="flex flex-wrap gap-1 group/participants">
+        {currentParticipant && (
+          <li>
+            <ParticipantAvatar
+              participant={currentParticipant}
+              isCurrentParticipant
+            />
+          </li>
+        )}
+
+        {state.participants
+          .filter((p) => p.id !== state.currentParticipantId)
+          .map((participant) => (
+            <li key={participant.id}>
+              <ParticipantAvatar participant={participant} />
+            </li>
+          ))}
+      </ul>
+
+      <Menubar className="w-max ml-auto bg-transparent border-none">
+        <MenubarMenu>
+          <MenubarTrigger asChild>
+            <Button variant="ghost" className="text-xs">
+              {formattedScale}% <ChevronDownIcon className="size-3" />
+            </Button>
+          </MenubarTrigger>
+
+          <MenubarContent className="z-200">
+            {ZOOM_OPTIONS.map((option) => (
+              <MenubarItem
+                onClick={() => state.changeScale(option.handler(state.scale))}
+              >
+                {option.label}
+                {option.shortcut && (
+                  <MenubarShortcut>{option.shortcut}</MenubarShortcut>
+                )}
+              </MenubarItem>
+            ))}
+          </MenubarContent>
+        </MenubarMenu>
+      </Menubar>
+    </SidebarHeader>
+  );
+}
+
 function FillPropsGroup() {
   const state = useStore(
     useShallow((state) => ({
       shapes: state.shapes,
-      selectedShapeIds:
-        state.currentParticipantId &&
-        state.currentParticipantId in state.selectedShapeIds
-          ? state.selectedShapeIds[state.currentParticipantId]
-          : fallbackSelectedShapeIds,
+      selectedShapeIds: state.currentParticipantId
+        ? state.selectedShapeIds[state.currentParticipantId]
+        : null,
       changeShapesColor: state.changeShapesColor,
     }))
   );
 
   const selectedShapes = state.shapes.filter((shape) =>
-    state.selectedShapeIds.includes(shape.id)
+    state.selectedShapeIds?.includes(shape.id)
   );
 
   const getCurrentFill = () => {
@@ -222,9 +226,11 @@ function FillPropsGroup() {
           <Button
             variant="ghost"
             size="icon"
-            onClick={() =>
-              state.changeShapesColor(state.selectedShapeIds, DEFAULT_COLOR)
-            }
+            onClick={() => {
+              if (state.selectedShapeIds) {
+                state.changeShapesColor(state.selectedShapeIds, DEFAULT_COLOR);
+              }
+            }}
           >
             <PlusIcon className="size-4" />
           </Button>
@@ -241,17 +247,21 @@ function FillPropsGroup() {
             <div className="flex items-center justify-between gap-2">
               <ColorInput
                 color={currentFill}
-                onColorChange={(newColor) =>
-                  state.changeShapesColor(state.selectedShapeIds, newColor)
-                }
+                onColorChange={(newColor) => {
+                  if (state.selectedShapeIds) {
+                    state.changeShapesColor(state.selectedShapeIds, newColor);
+                  }
+                }}
               />
 
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={() =>
-                  state.changeShapesColor(state.selectedShapeIds, undefined)
-                }
+                onClick={() => {
+                  if (state.selectedShapeIds) {
+                    state.changeShapesColor(state.selectedShapeIds, undefined);
+                  }
+                }}
               >
                 <Trash2Icon className="size-4" />
               </Button>
@@ -267,17 +277,15 @@ function StrokePropsGroup() {
   const state = useStore(
     useShallow((state) => ({
       shapes: state.shapes,
-      selectedShapeIds:
-        state.currentParticipantId &&
-        state.currentParticipantId in state.selectedShapeIds
-          ? state.selectedShapeIds[state.currentParticipantId]
-          : fallbackSelectedShapeIds,
+      selectedShapeIds: state.currentParticipantId
+        ? state.selectedShapeIds[state.currentParticipantId]
+        : null,
       changeShapesStroke: state.changeShapesStroke,
     }))
   );
 
   const selectedShapes = state.shapes.filter((shape) =>
-    state.selectedShapeIds.includes(shape.id)
+    state.selectedShapeIds?.includes(shape.id)
   );
 
   const getCurrentStroke = () => {
@@ -326,13 +334,15 @@ function StrokePropsGroup() {
           <Button
             variant="ghost"
             size="icon"
-            onClick={() =>
-              state.changeShapesStroke(
-                state.selectedShapeIds,
-                DEFAULT_STROKE_COLOR,
-                DEFAULT_STROKE_WIDTH
-              )
-            }
+            onClick={() => {
+              if (state.selectedShapeIds) {
+                state.changeShapesStroke(
+                  state.selectedShapeIds,
+                  DEFAULT_STROKE_COLOR,
+                  DEFAULT_STROKE_WIDTH
+                );
+              }
+            }}
           >
             <PlusIcon className="size-4" />
           </Button>
@@ -349,38 +359,44 @@ function StrokePropsGroup() {
             <div className="flex items-center justify-between gap-2">
               <ColorInput
                 color={currentStroke.color}
-                onColorChange={(newColor) =>
-                  state.changeShapesStroke(
-                    state.selectedShapeIds,
-                    newColor,
-                    currentStroke.width
-                  )
-                }
+                onColorChange={(newColor) => {
+                  if (state.selectedShapeIds) {
+                    state.changeShapesStroke(
+                      state.selectedShapeIds,
+                      newColor,
+                      currentStroke.width
+                    );
+                  }
+                }}
               />
 
               <NumberInput
                 min={1}
                 value={currentStroke.width}
                 className="border-none flex-1/2"
-                onValueChange={(newValue) =>
-                  state.changeShapesStroke(
-                    state.selectedShapeIds,
-                    currentStroke.color,
-                    Number(newValue)
-                  )
-                }
+                onValueChange={(newValue) => {
+                  if (state.selectedShapeIds) {
+                    state.changeShapesStroke(
+                      state.selectedShapeIds,
+                      currentStroke.color,
+                      Number(newValue)
+                    );
+                  }
+                }}
               />
 
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={() =>
-                  state.changeShapesStroke(
-                    state.selectedShapeIds,
-                    undefined,
-                    undefined
-                  )
-                }
+                onClick={() => {
+                  if (state.selectedShapeIds) {
+                    state.changeShapesStroke(
+                      state.selectedShapeIds,
+                      undefined,
+                      undefined
+                    );
+                  }
+                }}
               >
                 <Trash2Icon className="size-4" />
               </Button>
@@ -396,18 +412,16 @@ function LayoutPropsGroup() {
   const state = useStore(
     useShallow((state) => ({
       shapes: state.shapes,
-      selectedShapeIds:
-        state.currentParticipantId &&
-        state.currentParticipantId in state.selectedShapeIds
-          ? state.selectedShapeIds[state.currentParticipantId]
-          : fallbackSelectedShapeIds,
+      selectedShapeIds: state.currentParticipantId
+        ? state.selectedShapeIds[state.currentParticipantId]
+        : null,
       currentParticipantId: state.currentParticipantId,
       resizeShapes: state.resizeShapes,
     }))
   );
 
   const selectedShapes = state.shapes.filter((shape) =>
-    state.selectedShapeIds.includes(shape.id)
+    state.selectedShapeIds?.includes(shape.id)
   );
 
   const getCurrentWidth = () => {
@@ -465,21 +479,25 @@ function LayoutPropsGroup() {
           <NumberInput
             value={getCurrentWidth()}
             min={0}
-            onValueChange={(newValue) =>
-              state.resizeShapes(state.selectedShapeIds, {
-                width: newValue,
-              })
-            }
+            onValueChange={(newValue) => {
+              if (state.selectedShapeIds) {
+                state.resizeShapes(state.selectedShapeIds, {
+                  width: newValue,
+                });
+              }
+            }}
             placeholder="Width"
           />
           <NumberInput
             value={getCurrentHeight()}
             min={0}
-            onValueChange={(newValue) =>
-              state.resizeShapes(state.selectedShapeIds, {
-                height: newValue,
-              })
-            }
+            onValueChange={(newValue) => {
+              if (state.selectedShapeIds) {
+                state.resizeShapes(state.selectedShapeIds, {
+                  height: newValue,
+                });
+              }
+            }}
             placeholder="Height"
           />
         </div>
@@ -492,17 +510,15 @@ function PositionPropsGroup() {
   const state = useStore(
     useShallow((state) => ({
       shapes: state.shapes,
-      selectedShapeIds:
-        state.currentParticipantId &&
-        state.currentParticipantId in state.selectedShapeIds
-          ? state.selectedShapeIds[state.currentParticipantId]
-          : fallbackSelectedShapeIds,
+      selectedShapeIds: state.currentParticipantId
+        ? state.selectedShapeIds[state.currentParticipantId]
+        : null,
       moveShapes: state.moveShapes,
     }))
   );
 
   const selectedShapes = state.shapes.filter((shape) =>
-    state.selectedShapeIds.includes(shape.id)
+    state.selectedShapeIds?.includes(shape.id)
   );
 
   const getCurrentX = () => {
@@ -547,16 +563,20 @@ function PositionPropsGroup() {
         <div className="flex gap-2">
           <NumberInput
             value={getCurrentX()}
-            onValueChange={(newValue) =>
-              state.moveShapes(state.selectedShapeIds, { x: newValue })
-            }
+            onValueChange={(newValue) => {
+              if (state.selectedShapeIds) {
+                state.moveShapes(state.selectedShapeIds, { x: newValue });
+              }
+            }}
             placeholder="X"
           />
           <NumberInput
             value={getCurrentY()}
-            onValueChange={(newValue) =>
-              state.moveShapes(state.selectedShapeIds, { y: newValue })
-            }
+            onValueChange={(newValue) => {
+              if (state.selectedShapeIds) {
+                state.moveShapes(state.selectedShapeIds, { y: newValue });
+              }
+            }}
             placeholder="Y"
           />
         </div>
