@@ -10,10 +10,8 @@ import { shallow } from "zustand/shallow";
 import type { Vector2d } from "konva/lib/types";
 import { deepEqual } from "fast-equals";
 
-export const yDoc = new Y.Doc();
-export const yShapes = yDoc.getMap<ShapeData>("shapes");
-export const ySelectedShapeIds =
-  yDoc.getMap<ShapeData["id"][]>("selectedShapeIds");
+const yDoc = new Y.Doc();
+const yShapes = yDoc.getMap<ShapeData>("shapes");
 
 let wsProvider: WebsocketProvider | null = null;
 let awareness: awarenessProtocol.Awareness | null = null;
@@ -45,73 +43,88 @@ export function RealtimeManager() {
     const awarenessObserver = () => {
       if (!awareness) return;
 
-      const participantsWithCursorPosition = Array.from(
-        awareness.getStates().values()
-      );
+      const awarenessStates = Array.from(awareness.getStates().values());
 
       useStore.setState((state) => {
-        for (const participant of participantsWithCursorPosition) {
+        for (const item of awarenessStates) {
           const updatedParticipant = {
-            id: participant.id,
-            color: participant.color,
-            joinedAt: participant.joinedAt,
+            id: item.id,
+            color: item.color,
+            joinedAt: item.joinedAt,
           };
-
-          const updatedCursorPosition = participant.cursorPosition;
+          const updatedCursorPosition = item.cursorPosition;
+          const updatedSelectedShapeIds = item.selectedShapeIds;
 
           const localParticipant = state.participants.find(
             (p) => p.id === updatedParticipant.id
           );
-
           const localCursorPosition =
             state.cursorPositions[updatedParticipant.id];
 
+          const localSelectedShapeIds =
+            state.selectedShapeIds[updatedParticipant.id];
+
           if (!localParticipant) {
             state.participants.push(updatedParticipant);
-            state.cursorPositions[updatedParticipant.id] =
-              updatedCursorPosition;
           } else {
             if (!deepEqual(localParticipant, updatedParticipant)) {
               Object.assign(localParticipant, updatedParticipant);
             }
+          }
 
-            if (!deepEqual(localCursorPosition, updatedCursorPosition)) {
-              state.cursorPositions[updatedParticipant.id] =
-                updatedCursorPosition;
-            }
+          if (!deepEqual(localCursorPosition, updatedCursorPosition)) {
+            state.cursorPositions[updatedParticipant.id] =
+              updatedCursorPosition;
+          }
+
+          if (!deepEqual(localSelectedShapeIds, updatedSelectedShapeIds)) {
+            state.selectedShapeIds[updatedParticipant.id] =
+              updatedSelectedShapeIds;
           }
         }
       });
     };
+
     const shapesObserver = (e: Y.YMapEvent<ShapeData>) => {
-      if (e.transaction.origin !== state.currentParticipantId) {
-        useStore.setState({ shapes: Array.from(e.target.values()) });
-      }
-    };
-    const selectedShapeIdsObserver = (e: Y.YMapEvent<ShapeData["id"][]>) => {
-      if (e.transaction.origin !== state.currentParticipantId) {
-        useStore.setState({
-          selectedShapeIds: e.target.toJSON(),
-        });
-      }
+      if (e.transaction.origin === state.currentParticipantId) return;
+
+      useStore.setState((state) => {
+        for (const yShape of Array.from(e.target.values())) {
+          const localShape = state.shapes.find((s) => s.id === yShape.id);
+
+          if (localShape) {
+            if (!deepEqual(localShape, yShape))
+              Object.assign(localShape, yShape);
+          } else {
+            state.shapes.push(yShape);
+          }
+        }
+
+        for (let i = 0; i < state.shapes.length; i++) {
+          const localShape = state.shapes[i];
+
+          if (!e.target.has(localShape.id)) {
+            state.shapes.splice(i, 1);
+          }
+        }
+      });
     };
 
     awareness.on("change", awarenessObserver);
     yShapes.observe(shapesObserver);
-    ySelectedShapeIds.observe(selectedShapeIdsObserver);
 
     awareness.setLocalState({
       id: state.currentParticipantId,
       color: PARTICIPANT_COLORS[currentParticipants.length],
       joinedAt: Date.now(),
       cursorPosition: null,
+      selectedShapeIds: [],
     });
 
     return () => {
       awareness?.off("change", awarenessObserver);
       yShapes.unobserve(shapesObserver);
       awareness?.destroy();
-      ySelectedShapeIds.unobserve(selectedShapeIdsObserver);
       wsProvider?.destroy();
     };
   }, [state.roomId, state.currentParticipantId]);
@@ -162,5 +175,18 @@ useStore.subscribe(
   },
   (cursorPosition: Vector2d | null) => {
     awareness?.setLocalStateField("cursorPosition", cursorPosition);
+  }
+);
+
+useStore.subscribe(
+  (state) => {
+    if (!state.currentParticipantId) return null;
+
+    return state.selectedShapeIds[state.currentParticipantId];
+  },
+  (selectedShapeIds: ShapeData["id"][] | null) => {
+    if (!selectedShapeIds) return;
+
+    awareness?.setLocalStateField("selectedShapeIds", selectedShapeIds);
   }
 );
