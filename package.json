@@ -24,6 +24,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "fast-equals": "^5.2.2",
+    "immer": "^10.1.1",
     "konva": "^9.3.22",
     "lucide-react": "^0.539.0",
     "react": "^19.1.1",
@@ -36,7 +37,8 @@
     "tailwindcss": "^4.1.11",
     "y-protocols": "^1.0.6",
     "y-websocket": "^3.0.0",
-    "yjs": "^13.6.27"
+    "yjs": "^13.6.27",
+    "zustand": "^5.0.8"
   },
   "devDependencies": {
     "@eslint/js": "^9.32.0",

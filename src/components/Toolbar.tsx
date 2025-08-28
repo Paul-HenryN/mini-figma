@@ -1,5 +1,4 @@
 import { APP_TOOLS } from "@/const";
-import { useAppContext } from "@/context";
 import { cn } from "@/lib/utils";
 import type { Tool } from "@/types";
 import {
@@ -10,6 +9,8 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { Button } from "./ui/button";
+import { useStore } from "@/store";
+import { useShallow } from "zustand/react/shallow";
 
 const toolIcons: Record<Tool["id"], LucideIcon> = {
   move: MoveIcon,
@@ -19,32 +20,32 @@ const toolIcons: Record<Tool["id"], LucideIcon> = {
 };
 
 export function Toolbar() {
-  const {
-    state: { currentTool },
-    dispatch,
-  } = useAppContext();
+  const state = useStore(
+    useShallow((state) => ({
+      currentTool: state.currentTool,
+      changeTool: state.changeTool,
+    }))
+  );
 
   return (
-    <>
-      <ul className="absolute bottom-15 left-1/2 -translate-x-1/2">
-        {Object.values(APP_TOOLS).map((tool, i) => {
-          const Icon = toolIcons[tool.id];
+    <ul className="absolute bottom-15 left-1/2 -translate-x-1/2">
+      {Object.values(APP_TOOLS).map((tool, i) => {
+        const Icon = toolIcons[tool.id];
 
-          return (
-            <Button
-              key={tool.id}
-              variant={currentTool.id === tool.id ? "default" : "outline"}
-              onMouseDown={() => dispatch({ type: "CHANGE_TOOL", tool })}
-              className={cn(
-                i !== 0 && "rounded-l-none",
-                i !== Object.values(APP_TOOLS).length - 1 && "rounded-r-none"
-              )}
-            >
-              <Icon className="size-4" />
-            </Button>
-          );
-        })}
-      </ul>
-    </>
+        return (
+          <Button
+            key={tool.id}
+            variant={state.currentTool.id === tool.id ? "default" : "outline"}
+            onMouseDown={() => state.changeTool(tool)}
+            className={cn(
+              i !== 0 && "rounded-l-none",
+              i !== Object.values(APP_TOOLS).length - 1 && "rounded-r-none"
+            )}
+          >
+            <Icon className="size-4" />
+          </Button>
+        );
+      })}
+    </ul>
   );
 }

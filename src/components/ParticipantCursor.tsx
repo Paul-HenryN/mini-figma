@@ -1,5 +1,5 @@
 import { UI_COLOR } from "@/const";
-import { useAppContext } from "@/context";
+import { useStore } from "@/store";
 import type { Participant } from "@/types";
 import type Konva from "konva";
 import { HandGrabIcon, HandIcon, MousePointer2Icon } from "lucide-react";
@@ -14,9 +14,11 @@ export function ParticipantCursor({
   stage: Konva.Stage;
   isCurrentParticipant?: boolean;
 }) {
-  const {
-    state: { isPanning },
-  } = useAppContext();
+  const isPanning = useStore((state) => state.isPanning);
+  const cursorPosition = useStore(
+    (state) => state.cursorPositions[participant.id]
+  );
+
   const [isMouseDown, setMouseDown] = useState(false);
 
   useEffect(() => {
@@ -37,10 +39,10 @@ export function ParticipantCursor({
     };
   }, []);
 
-  if (!participant.cursorPosition) return null;
+  if (!cursorPosition) return null;
 
   const stageTransform = stage.getAbsoluteTransform().copy();
-  const { x, y } = stageTransform.point(participant.cursorPosition);
+  const { x, y } = stageTransform.point(cursorPosition);
 
   const color = isCurrentParticipant ? UI_COLOR : participant.color;
 
@@ -74,7 +76,7 @@ export function ParticipantCursor({
           className="rounded-xs px-1 truncate max-w-[100px] mt-1 ml-5 text-sm"
           style={{ backgroundColor: color }}
         >
-          {participant.clientId}
+          {participant.id}
         </div>
       )}
     </div>
