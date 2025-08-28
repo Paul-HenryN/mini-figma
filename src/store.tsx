@@ -28,7 +28,10 @@ export type State = {
 
 type Actions = {
   addShape: (initX: number, initY: number) => void;
-  syncShapeData: (shapeId: ShapeData["id"], data: Record<string, any>) => void;
+  syncShapeData: (
+    shapeId: ShapeData["id"],
+    data: Record<string, unknown>
+  ) => void;
   resizeShapes: (
     shapeIds: ShapeData["id"][],
     args:
@@ -98,7 +101,7 @@ export const useStore = create<State & Actions>()(
       },
       syncShapeData: (shapeId, data) => {
         set((state) => {
-          let shape = state.shapes.find((shape) => shape.id === shapeId);
+          const shape = state.shapes.find((shape) => shape.id === shapeId);
 
           if (shape) {
             Object.assign(shape, data);
