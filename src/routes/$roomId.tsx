@@ -1,5 +1,5 @@
 import { useAuth } from "@/auth-context";
-import { Canvas } from "@/components/Canvas";
+import { Canvas } from "@/components/canvas/canvas";
 import { LayersSidebar } from "@/components/LayersSidebar";
 import { PropsSidebar } from "@/components/PropsSidebar";
 import { RealtimeManager } from "@/components/RealtimeManager";

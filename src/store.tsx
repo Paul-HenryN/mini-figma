@@ -1,9 +1,17 @@
 import { immer } from "zustand/middleware/immer";
 import { create } from "zustand";
 import type { Participant, ShapeData, Tool } from "./types";
-import { APP_TOOLS } from "./const";
+import { APP_TOOLS, DEFAULT_COLOR } from "./const";
 import type { Vector2d } from "konva/lib/types";
 import { subscribeWithSelector } from "zustand/middleware";
+
+const fill = DEFAULT_COLOR;
+const fontSize = 24;
+const fontFamily = "Arial";
+const fontStyle = "normal";
+const lineHeight = 1;
+const letterSpacing = 0;
+const textDecoration = "";
 
 export type State = {
   shapes: ShapeData[];
@@ -19,7 +27,7 @@ export type State = {
 };
 
 type Actions = {
-  addShape: (newShape: ShapeData) => void;
+  addShape: (initX: number, initY: number) => void;
   syncShapeData: (shapeId: ShapeData["id"], data: Record<string, any>) => void;
   resizeShapes: (
     shapeIds: ShapeData["id"][],
@@ -69,8 +77,17 @@ export const useStore = create<State & Actions>()(
       isPanning: false,
       currentTool: APP_TOOLS.MOVE,
       cursorPositions: {},
-      addShape: (newShape) => {
+      addShape: (initx, initY) => {
         set((state) => {
+          const newShape = initializeShape({
+            currentToolId: state.currentTool.id,
+            shapes: state.shapes,
+            initX: initx,
+            initY: initY,
+          });
+
+          if (!newShape) return;
+
           state.shapes.push(newShape);
           state.pendingShapeId = newShape.id;
 
@@ -176,7 +193,7 @@ export const useStore = create<State & Actions>()(
         set((state) => {
           if (!state.currentParticipantId) return;
 
-          state.selectedShapeIds[state.currentParticipantId] = [];
+          state.selectedShapeIds[state.currentParticipantId]?.splice(0);
         });
       },
       setPanning: (isPanning) => {
@@ -218,3 +235,68 @@ export const useStore = create<State & Actions>()(
     }))
   )
 );
+
+function initializeShape({
+  currentToolId,
+  shapes,
+  initX,
+  initY,
+}: {
+  currentToolId: Tool["id"];
+  shapes: ShapeData[];
+  initX: number;
+  initY: number;
+}): ShapeData | null {
+  const id = crypto.randomUUID();
+
+  switch (currentToolId) {
+    case "rectangle":
+      const rectangleIndex =
+        shapes.filter((shape) => shape.type === "rectangle").length + 1;
+
+      return {
+        type: "rectangle",
+        id,
+        name: `Rectangle ${rectangleIndex}`,
+        x: initX,
+        y: initY,
+        fill,
+        width: 0,
+        height: 0,
+      };
+    case "ellipse":
+      const ellipseIndex =
+        shapes.filter((shape) => shape.type === "ellipse").length + 1;
+
+      return {
+        type: "ellipse",
+        id,
+        name: `Ellipse ${ellipseIndex}`,
+        x: initX,
+        y: initY,
+        fill,
+        width: 0,
+        height: 0,
+      };
+    case "text":
+      return {
+        type: "text",
+        id,
+        name: "",
+        x: initX,
+        y: initY,
+        width: 0,
+        height: 0,
+        fill,
+        text: "",
+        fontSize,
+        fontFamily,
+        fontStyle,
+        letterSpacing,
+        lineHeight,
+        textDecoration,
+      };
+    default:
+      return null;
+  }
+}
