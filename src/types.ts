@@ -18,8 +18,8 @@ export type ShapeData = {
   strokeWidth?: number;
   offsetX?: number;
   offsetY?: number;
-  width: number;
-  height: number;
+  width?: number;
+  height?: number;
 } & (
   | {
       type: "rectangle";

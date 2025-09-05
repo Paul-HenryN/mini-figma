@@ -24,6 +24,7 @@ export function Shape({
       syncShapeData: state.syncShapeData,
       updateLocalCursorPosition: state.updateLocalCursorPosition,
       toggleSelectShape: state.toggleSelectShape,
+      setPendingShapeId: state.setPendingShapeId,
     }))
   );
 
@@ -34,7 +35,7 @@ export function Shape({
     const node = e.target;
     if (!node) return;
 
-    const updatedWith = Math.round(node.width() * node.scaleX());
+    const updatedWidth = Math.round(node.width() * node.scaleX());
     const updatedHeight = Math.round(node.height() * node.scaleY());
     const updatedX = Math.round(node.x());
     const updatedY = Math.round(node.y());
@@ -42,19 +43,19 @@ export function Shape({
     node.scale({ x: 1, y: 1 });
     node.x(updatedX);
     node.y(updatedY);
-    node.width(updatedWith);
+    node.width(updatedWidth);
     node.height(updatedHeight);
 
     if (node.getAttrs().type === "ellipse") {
-      node.offsetX(-updatedWith / 2);
+      node.offsetX(-updatedWidth / 2);
       node.offsetY(-updatedHeight / 2);
 
       state.syncShapeData(node.id(), {
         x: updatedX,
         y: updatedY,
-        width: updatedWith,
+        width: updatedWidth,
         height: updatedHeight,
-        offsetX: -updatedWith / 2,
+        offsetX: -updatedWidth / 2,
         offsetY: -updatedHeight / 2,
       });
 
@@ -64,7 +65,7 @@ export function Shape({
     state.syncShapeData(node.id(), {
       x: updatedX,
       y: updatedY,
-      width: updatedWith,
+      width: updatedWidth,
       height: updatedHeight,
     });
   };
@@ -72,7 +73,8 @@ export function Shape({
   const commonProps = {
     ref: shapeRef,
     onClick: (e: KonvaEventObject<MouseEvent>) => {
-      e.cancelBubble = true;
+      e.cancelBubble = state.currentTool.id !== "move" && !state.isPanning;
+
       if (state.currentTool.id === "move" && !state.isPanning) {
         state.toggleSelectShape(data.id, {
           isMultiSelect: e.evt.shiftKey,
@@ -80,7 +82,10 @@ export function Shape({
       }
     },
     onTransform: handleTransform,
-    onDragMove,
+    onDragMove: (e: KonvaEventObject<DragEvent>) => {
+      e.cancelBubble = state.currentTool.id !== "move" && !state.isPanning;
+      onDragMove?.(e);
+    },
     onMouseDown: (e: KonvaEventObject<MouseEvent>) => {
       e.cancelBubble = true;
     },
@@ -99,14 +104,26 @@ export function Shape({
       <Ellipse
         {...data}
         {...commonProps}
-        radiusX={Math.abs(data.width) / 2}
-        radiusY={Math.abs(data.height) / 2}
+        radiusX={data.width ? Math.abs(data.width) / 2 : 0}
+        radiusY={data.height ? Math.abs(data.height) / 2 : 0}
       />
     );
   }
 
-  if (data.type === "text" && data.id !== state.pendingShapeId) {
-    return <Text {...data} {...commonProps} />;
+  if (data.type === "text") {
+    const isPending = state.pendingShapeId === data.id;
+
+    return (
+      <Text
+        {...data}
+        {...commonProps}
+        width={undefined}
+        height={undefined}
+        opacity={isPending ? 0 : 1}
+        onDblClick={() => state.setPendingShapeId(data.id)}
+        onDblTap={() => state.setPendingShapeId(data.id)}
+      />
+    );
   }
 
   return null;

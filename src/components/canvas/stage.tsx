@@ -57,14 +57,14 @@ export function Stage({ ref }: { ref: React.RefObject<Konva.Stage | null> }) {
 
     state.updateLocalCursorPosition(pointerPos);
 
-    if (!pointerPos || !pendingShape) return;
+    if (!pointerPos || !pendingShape || pendingShape.type === "text") return;
 
     const dx = pointerPos.x - pendingShape.x;
     const dy = pointerPos.y - pendingShape.y;
 
     state.resizeShapes([pendingShape.id], {
-      width: dx,
-      height: dy,
+      width: Math.round(dx),
+      height: Math.round(dy),
     });
   };
 
@@ -85,6 +85,23 @@ export function Stage({ ref }: { ref: React.RefObject<Konva.Stage | null> }) {
 
   const handleMouseLeave = () => {
     state.updateLocalCursorPosition(null);
+  };
+
+  const handleDragMove = (e: Konva.KonvaEventObject<DragEvent>) => {
+    const node = e.target;
+
+    const updatedX = Math.round(node.x());
+    const updatedY = Math.round(node.y());
+
+    node.x(updatedX);
+    node.y(updatedY);
+
+    state.syncShapeData(node.id(), { x: updatedX, y: updatedY });
+
+    const pointerPos = ref.current?.getRelativePointerPosition();
+    if (!pointerPos) return;
+
+    state.updateLocalCursorPosition(pointerPos);
   };
 
   useEffect(() => {
@@ -134,23 +151,6 @@ export function Stage({ ref }: { ref: React.RefObject<Konva.Stage | null> }) {
     ref.current.position(newPos);
   }, [state.scale]);
 
-  const handleDragMove = (e: Konva.KonvaEventObject<DragEvent>) => {
-    const node = e.target;
-
-    const updatedX = Math.round(node.x());
-    const updatedY = Math.round(node.y());
-
-    node.x(updatedX);
-    node.y(updatedY);
-
-    state.syncShapeData(node.id(), { x: updatedX, y: updatedY });
-
-    const pointerPos = ref.current?.getRelativePointerPosition();
-    if (!pointerPos) return;
-
-    state.updateLocalCursorPosition(pointerPos);
-  };
-
   return (
     <KonvaStage
       width={window.innerWidth}
@@ -176,6 +176,18 @@ export function Stage({ ref }: { ref: React.RefObject<Konva.Stage | null> }) {
             state.currentParticipantId !== null &&
             selectingclientId === state.currentParticipantId;
 
+          const currentSelectedShapeIds =
+            state.selectedShapeIds[selectingclientId];
+
+          let isText = false;
+
+          if (currentSelectedShapeIds.length === 1) {
+            const shape = state.shapes.find(
+              (shape) => shape.id === currentSelectedShapeIds[0]
+            );
+            isText = shape?.type === "text";
+          }
+
           const participant = state.participants.find(
             (p) => p.id === selectingclientId
           );
@@ -188,7 +200,7 @@ export function Stage({ ref }: { ref: React.RefObject<Konva.Stage | null> }) {
               }}
               onMouseDown={(e) => (e.cancelBubble = true)}
               rotateEnabled={isCurrentClient}
-              enabledAnchors={isCurrentClient ? undefined : []}
+              resizeEnabled={isCurrentClient && !isText}
               borderStroke={isCurrentClient ? UI_COLOR : participant?.color}
               anchorStroke={UI_COLOR}
               anchorSize={15}
@@ -198,6 +210,7 @@ export function Stage({ ref }: { ref: React.RefObject<Konva.Stage | null> }) {
 
                 state.updateLocalCursorPosition(pointerPos);
               }}
+              keepRatio={false}
             />
           );
         })}

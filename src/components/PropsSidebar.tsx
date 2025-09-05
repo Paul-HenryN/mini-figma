@@ -428,19 +428,15 @@ function LayoutPropsGroup() {
     if (selectedShapes.length === 0) return undefined;
 
     if (selectedShapes.length === 1) {
-      return getShapeDimensions(selectedShapes[0]).width;
+      return selectedShapes[0].width;
     }
 
     const firstSelectedShape = selectedShapes[0];
-    const firstSelectedShapeDimensions = getShapeDimensions(firstSelectedShape);
 
     if (
-      selectedShapes.every((shape) => {
-        const shapeDimensions = getShapeDimensions(shape);
-        return shapeDimensions.width === firstSelectedShapeDimensions.width;
-      })
+      selectedShapes.every((shape) => shape.width === firstSelectedShape.width)
     ) {
-      return firstSelectedShapeDimensions.width;
+      return firstSelectedShape.width;
     }
 
     return "mixed";
@@ -450,19 +446,17 @@ function LayoutPropsGroup() {
     if (selectedShapes.length === 0) return undefined;
 
     if (selectedShapes.length === 1) {
-      return getShapeDimensions(selectedShapes[0]).height;
+      return selectedShapes[0].height;
     }
 
     const firstSelectedShape = selectedShapes[0];
-    const firstSelectedShapeDimensions = getShapeDimensions(firstSelectedShape);
 
     if (
-      selectedShapes.every((shape) => {
-        const shapeDimensions = getShapeDimensions(shape);
-        return shapeDimensions.height === firstSelectedShapeDimensions.height;
-      })
+      selectedShapes.every(
+        (shape) => shape.height === firstSelectedShape.height
+      )
     ) {
-      return firstSelectedShapeDimensions.height;
+      return firstSelectedShape.height;
     }
 
     return "mixed";
@@ -620,18 +614,5 @@ function getShapeLabel(shapeType: ShapeData["type"]) {
       return "Rectangle";
     case "text":
       return "Text";
-  }
-}
-
-function getShapeDimensions(shape: ShapeData) {
-  switch (shape.type) {
-    case "ellipse":
-    case "rectangle":
-      return { width: Math.abs(shape.width), height: Math.abs(shape.height) };
-    case "text":
-      return {
-        width: shape.fontSize * shape.text.length,
-        height: shape.fontSize,
-      };
   }
 }

@@ -53,6 +53,7 @@ type Actions = {
   ) => void;
   deleteShapes: (shapeIds: ShapeData["id"][]) => void;
   confirmPendingShape: () => void;
+  setPendingShapeId: (shapeId: ShapeData["id"]) => void;
   toggleSelectShape: (
     shapeId: ShapeData["id"],
     { isMultiSelect }: { isMultiSelect?: boolean }
@@ -117,8 +118,8 @@ export const useStore = create<State & Actions>()(
               if (height) shape.height = height;
 
               if (shape.type === "ellipse") {
-                shape.offsetX = -shape.width / 2;
-                shape.offsetY = -shape.height / 2;
+                if (width) shape.offsetX = -width / 2;
+                if (height) shape.offsetY = -height / 2;
               }
             });
         });
@@ -157,12 +158,27 @@ export const useStore = create<State & Actions>()(
           state.shapes = state.shapes.filter(
             (shape) => !shapeIds.includes(shape.id)
           );
+
+          for (const participantId in state.selectedShapeIds) {
+            const currentSelectedShapeIds =
+              state.selectedShapeIds[participantId];
+
+            state.selectedShapeIds[participantId] =
+              currentSelectedShapeIds.filter(
+                (shapeId) => !shapeIds.includes(shapeId)
+              );
+          }
         });
       },
       confirmPendingShape: () => {
         set((state) => {
           state.pendingShapeId = null;
           state.currentTool = APP_TOOLS.MOVE;
+        });
+      },
+      setPendingShapeId: (shapeId) => {
+        set((state) => {
+          state.pendingShapeId = shapeId;
         });
       },
       toggleSelectShape: (shapeId, { isMultiSelect = false }) => {
@@ -252,6 +268,9 @@ function initializeShape({
 }): ShapeData | null {
   const id = crypto.randomUUID();
 
+  const x = Math.round(initX);
+  const y = Math.round(initY);
+
   switch (currentToolId) {
     case "rectangle":
       const rectangleIndex =
@@ -261,8 +280,8 @@ function initializeShape({
         type: "rectangle",
         id,
         name: `Rectangle ${rectangleIndex}`,
-        x: initX,
-        y: initY,
+        x,
+        y,
         fill,
         width: 0,
         height: 0,
@@ -275,8 +294,8 @@ function initializeShape({
         type: "ellipse",
         id,
         name: `Ellipse ${ellipseIndex}`,
-        x: initX,
-        y: initY,
+        x,
+        y,
         fill,
         width: 0,
         height: 0,
@@ -286,10 +305,8 @@ function initializeShape({
         type: "text",
         id,
         name: "",
-        x: initX,
-        y: initY,
-        width: 0,
-        height: 0,
+        x,
+        y,
         fill,
         text: "",
         fontSize,

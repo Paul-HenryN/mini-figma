@@ -79,14 +79,7 @@ export function Canvas() {
       )}
 
       {pendingShape && pendingShape.type === "text" && stageRef.current && (
-        <PendingTextInput
-          textShape={pendingShape}
-          stage={stageRef.current}
-          onTextChange={(text) =>
-            state.syncShapeData(pendingShape.id, { text, name: text })
-          }
-          OnBlur={() => state.confirmPendingShape()}
-        />
+        <PendingTextInput textShape={pendingShape} stage={stageRef.current} />
       )}
     </>
   );

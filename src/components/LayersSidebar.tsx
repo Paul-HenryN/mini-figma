@@ -106,7 +106,8 @@ function LayerButton({
         onClick={onClick}
       >
         <Icon className="mr-1" />
-        {shape.name}
+
+        <span className="truncate max-w-[70%]">{shape.name}</span>
       </Button>
 
       <Button
