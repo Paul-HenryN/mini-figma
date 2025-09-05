@@ -1,13 +1,13 @@
 import { immer } from "zustand/middleware/immer";
 import { create } from "zustand";
-import type { Participant, ShapeData, Tool } from "./types";
+import type { Participant, ShapeData, TextShape, Tool } from "./types";
 import { APP_TOOLS, DEFAULT_COLOR } from "./const";
 import type { Vector2d } from "konva/lib/types";
 import { subscribeWithSelector } from "zustand/middleware";
 
 const fill = DEFAULT_COLOR;
 const fontSize = 24;
-const fontFamily = "Arial";
+const fontFamily = "Inter";
 const fontStyle = "normal";
 const lineHeight = 1;
 const letterSpacing = 0;
@@ -48,8 +48,13 @@ type Actions = {
   ) => void;
   changeShapesStroke: (
     shapeIds: ShapeData["id"][],
-    color: string | undefined,
-    width: number | undefined
+    data:
+      | { color: string | null; width?: number | null }
+      | { color?: string | null; width: number | null }
+  ) => void;
+  changeTextProps: (
+    shapeIds: ShapeData["id"][],
+    data: Partial<Omit<TextShape, "type" | "text">>
   ) => void;
   deleteShapes: (shapeIds: ShapeData["id"][]) => void;
   confirmPendingShape: () => void;
@@ -143,13 +148,24 @@ export const useStore = create<State & Actions>()(
             });
         });
       },
-      changeShapesStroke(shapeIds, color, width) {
+      changeShapesStroke(shapeIds, { color, width }) {
         set((state) => {
           state.shapes
             .filter((shape) => shapeIds.includes(shape.id))
             .forEach((shape) => {
-              shape.stroke = color;
-              shape.strokeWidth = width;
+              if (color !== undefined) shape.stroke = color || undefined;
+              if (width !== undefined) shape.strokeWidth = width || undefined;
+            });
+        });
+      },
+      changeTextProps: (shapeIds, data) => {
+        set((state) => {
+          state.shapes
+            .filter(
+              (shape) => shapeIds.includes(shape.id) && shape.type === "text"
+            )
+            .forEach((shape) => {
+              Object.assign(shape, data);
             });
         });
       },

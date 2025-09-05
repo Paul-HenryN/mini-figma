@@ -8,6 +8,17 @@ export type Tool = {
   shortcut?: string;
 };
 
+export type TextShape = {
+  type: "text";
+  text: string;
+  fontSize: number;
+  fontFamily: string;
+  fontStyle: string;
+  lineHeight: number;
+  letterSpacing: number;
+  textDecoration: string;
+};
+
 export type ShapeData = {
   id: string;
   name: string;
@@ -27,16 +38,7 @@ export type ShapeData = {
   | {
       type: "ellipse";
     }
-  | {
-      type: "text";
-      text: string;
-      fontSize: number;
-      fontFamily: string;
-      fontStyle: string;
-      lineHeight: number;
-      letterSpacing: number;
-      textDecoration: string;
-    }
+  | TextShape
 );
 
 export type Participant = {

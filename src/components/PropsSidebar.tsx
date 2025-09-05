@@ -1,3 +1,4 @@
+import React from "react";
 import { ChevronDownIcon, PlusIcon, Trash2Icon } from "lucide-react";
 import {
   Menubar,
@@ -22,6 +23,8 @@ import {
   DEFAULT_COLOR,
   DEFAULT_STROKE_COLOR,
   DEFAULT_STROKE_WIDTH,
+  FONT_FAMILIES,
+  FONT_STYLES,
   UI_COLOR,
   ZOOM_FACTOR,
 } from "../const";
@@ -33,6 +36,13 @@ import { Avatar, AvatarFallback } from "./ui/avatar";
 import { cn } from "@/lib/utils";
 import { useStore } from "@/store";
 import { useShallow } from "zustand/react/shallow";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "./ui/select";
 
 const ZOOM_OPTIONS: {
   label: string;
@@ -96,7 +106,7 @@ export function PropsSidebar() {
 
   return (
     <Sidebar side="right">
-      <SidebarContent>
+      <SidebarContent className="pb-20">
         <PropsSidebarHeader />
 
         <SidebarSeparator />
@@ -120,6 +130,10 @@ export function PropsSidebar() {
             <StrokePropsGroup />
             <SidebarSeparator />
           </>
+        )}
+
+        {selectedShapes.some((shape) => shape.type === "text") && (
+          <TypographyPropsGroup />
         )}
       </SidebarContent>
     </Sidebar>
@@ -203,19 +217,7 @@ function FillPropsGroup() {
     state.selectedShapeIds?.includes(shape.id)
   );
 
-  const getCurrentFill = () => {
-    if (selectedShapes.length === 0) return undefined;
-
-    if (
-      selectedShapes.every((shape) => shape.fill === selectedShapes[0].fill)
-    ) {
-      return selectedShapes[0].fill;
-    }
-
-    return "mixed";
-  };
-
-  const currentFill = getCurrentFill();
+  const currentFill = getMixedProperty<string>("fill", selectedShapes);
 
   return (
     <SidebarGroup>
@@ -288,59 +290,27 @@ function StrokePropsGroup() {
     state.selectedShapeIds?.includes(shape.id)
   );
 
-  const getCurrentStroke = () => {
-    if (selectedShapes.length === 0) return undefined;
-
-    if (selectedShapes.length === 1) {
-      const selectedShape = selectedShapes[0];
-
-      if (!selectedShape.stroke) return undefined;
-
-      return {
-        color: selectedShape.stroke,
-        width: selectedShape.strokeWidth,
-      };
-    }
-
-    const firstSelectedShape = selectedShapes[0];
-
-    if (
-      firstSelectedShape.stroke &&
-      selectedShapes.every(
-        (shape) =>
-          shape.stroke === firstSelectedShape.stroke &&
-          shape.strokeWidth === firstSelectedShape.strokeWidth
-      )
-    ) {
-      return {
-        color: firstSelectedShape.stroke,
-        width: firstSelectedShape.strokeWidth,
-      };
-    }
-
-    if (selectedShapes.some((shape) => shape.stroke !== undefined)) {
-      return "mixed";
-    }
-  };
-
-  const currentStroke = getCurrentStroke();
+  const currentStrokeColor = getMixedProperty<string>("stroke", selectedShapes);
+  const currentStrokeWidth = getMixedProperty<number>(
+    "strokeWidth",
+    selectedShapes
+  );
 
   return (
     <SidebarGroup>
       <div className="flex items-center justify-between gap-2">
         <SidebarGroupTitle>Stroke</SidebarGroupTitle>
 
-        {(!currentStroke || currentStroke === "mixed") && (
+        {(!currentStrokeColor || currentStrokeColor === "mixed") && (
           <Button
             variant="ghost"
             size="icon"
             onClick={() => {
               if (state.selectedShapeIds) {
-                state.changeShapesStroke(
-                  state.selectedShapeIds,
-                  DEFAULT_STROKE_COLOR,
-                  DEFAULT_STROKE_WIDTH
-                );
+                state.changeShapesStroke(state.selectedShapeIds, {
+                  color: DEFAULT_STROKE_COLOR,
+                  width: DEFAULT_STROKE_WIDTH,
+                });
               }
             }}
           >
@@ -349,38 +319,34 @@ function StrokePropsGroup() {
         )}
       </div>
 
-      {currentStroke && (
+      {currentStrokeColor && (
         <SidebarGroupContent className="mt-1">
-          {currentStroke === "mixed" ? (
+          {currentStrokeColor === "mixed" ? (
             <SidebarGroupLabel>
               Click + to replace the mixed content
             </SidebarGroupLabel>
           ) : (
             <div className="flex items-center justify-between gap-2">
               <ColorInput
-                color={currentStroke.color}
+                color={currentStrokeColor}
                 onColorChange={(newColor) => {
                   if (state.selectedShapeIds) {
-                    state.changeShapesStroke(
-                      state.selectedShapeIds,
-                      newColor,
-                      currentStroke.width
-                    );
+                    state.changeShapesStroke(state.selectedShapeIds, {
+                      color: newColor,
+                    });
                   }
                 }}
               />
 
               <NumberInput
                 min={1}
-                value={currentStroke.width}
+                value={currentStrokeWidth}
                 className="border-none flex-1/2"
                 onValueChange={(newValue) => {
                   if (state.selectedShapeIds) {
-                    state.changeShapesStroke(
-                      state.selectedShapeIds,
-                      currentStroke.color,
-                      Number(newValue)
-                    );
+                    state.changeShapesStroke(state.selectedShapeIds, {
+                      width: Number(newValue),
+                    });
                   }
                 }}
               />
@@ -390,11 +356,10 @@ function StrokePropsGroup() {
                 size="icon"
                 onClick={() => {
                   if (state.selectedShapeIds) {
-                    state.changeShapesStroke(
-                      state.selectedShapeIds,
-                      undefined,
-                      undefined
-                    );
+                    state.changeShapesStroke(state.selectedShapeIds, {
+                      color: null,
+                      width: null,
+                    });
                   }
                 }}
               >
@@ -424,43 +389,8 @@ function LayoutPropsGroup() {
     state.selectedShapeIds?.includes(shape.id)
   );
 
-  const getCurrentWidth = () => {
-    if (selectedShapes.length === 0) return undefined;
-
-    if (selectedShapes.length === 1) {
-      return selectedShapes[0].width;
-    }
-
-    const firstSelectedShape = selectedShapes[0];
-
-    if (
-      selectedShapes.every((shape) => shape.width === firstSelectedShape.width)
-    ) {
-      return firstSelectedShape.width;
-    }
-
-    return "mixed";
-  };
-
-  const getCurrentHeight = () => {
-    if (selectedShapes.length === 0) return undefined;
-
-    if (selectedShapes.length === 1) {
-      return selectedShapes[0].height;
-    }
-
-    const firstSelectedShape = selectedShapes[0];
-
-    if (
-      selectedShapes.every(
-        (shape) => shape.height === firstSelectedShape.height
-      )
-    ) {
-      return firstSelectedShape.height;
-    }
-
-    return "mixed";
-  };
+  const currentWidth = getMixedProperty<number>("width", selectedShapes);
+  const currentHeight = getMixedProperty<number>("height", selectedShapes);
 
   return (
     <SidebarGroup>
@@ -471,7 +401,7 @@ function LayoutPropsGroup() {
 
         <div className="flex gap-2">
           <NumberInput
-            value={getCurrentWidth()}
+            value={currentWidth}
             min={0}
             onValueChange={(newValue) => {
               if (state.selectedShapeIds) {
@@ -483,7 +413,7 @@ function LayoutPropsGroup() {
             placeholder="Width"
           />
           <NumberInput
-            value={getCurrentHeight()}
+            value={currentHeight}
             min={0}
             onValueChange={(newValue) => {
               if (state.selectedShapeIds) {
@@ -515,37 +445,8 @@ function PositionPropsGroup() {
     state.selectedShapeIds?.includes(shape.id)
   );
 
-  const getCurrentX = () => {
-    if (selectedShapes.length === 0) return undefined;
-
-    if (selectedShapes.length === 1) {
-      return selectedShapes[0].x;
-    }
-
-    const firstSelectedShape = selectedShapes[0];
-
-    if (selectedShapes.every((shape) => shape.x === firstSelectedShape.x)) {
-      return firstSelectedShape.x;
-    }
-
-    return "mixed";
-  };
-
-  const getCurrentY = () => {
-    if (selectedShapes.length === 0) return undefined;
-
-    if (selectedShapes.length === 1) {
-      return selectedShapes[0].y;
-    }
-
-    const firstSelectedShape = selectedShapes[0];
-
-    if (selectedShapes.every((shape) => shape.y === firstSelectedShape.y)) {
-      return firstSelectedShape.y;
-    }
-
-    return "mixed";
-  };
+  const currentX = getMixedProperty<number>("x", selectedShapes);
+  const currentY = getMixedProperty<number>("y", selectedShapes);
 
   return (
     <SidebarGroup>
@@ -556,23 +457,185 @@ function PositionPropsGroup() {
 
         <div className="flex gap-2">
           <NumberInput
-            value={getCurrentX()}
+            value={currentX}
             onValueChange={(newValue) => {
               if (state.selectedShapeIds) {
                 state.moveShapes(state.selectedShapeIds, { x: newValue });
               }
             }}
-            placeholder="X"
           />
           <NumberInput
-            value={getCurrentY()}
+            value={currentY}
             onValueChange={(newValue) => {
               if (state.selectedShapeIds) {
                 state.moveShapes(state.selectedShapeIds, { y: newValue });
               }
             }}
-            placeholder="Y"
           />
+        </div>
+      </SidebarGroupContent>
+    </SidebarGroup>
+  );
+}
+
+function TypographyPropsGroup() {
+  const state = useStore(
+    useShallow((state) => ({
+      shapes: state.shapes,
+      selectedShapeIds: state.currentParticipantId
+        ? state.selectedShapeIds[state.currentParticipantId]
+        : null,
+      changeTextProps: state.changeTextProps,
+    }))
+  );
+
+  const selectedTextShapes = state.shapes.filter(
+    (shape) =>
+      state.selectedShapeIds?.includes(shape.id) && shape.type === "text"
+  ) as Extract<ShapeData, { type: "text" }>[];
+
+  const currentFontFamily = getMixedProperty<string>(
+    "fontFamily",
+    selectedTextShapes
+  );
+  const currentFontStyle = getMixedProperty<string>(
+    "fontStyle",
+    selectedTextShapes
+  );
+  const currentFontSize = getMixedProperty<number>(
+    "fontSize",
+    selectedTextShapes
+  );
+  const currentLetterSpacing = getMixedProperty<number>(
+    "letterSpacing",
+    selectedTextShapes
+  );
+
+  const currentLineHeight = getMixedProperty<number>(
+    "lineHeight",
+    selectedTextShapes
+  );
+
+  const handleFontFamilyChange = (newFontFamily: string) => {
+    if (state.selectedShapeIds) {
+      state.changeTextProps(state.selectedShapeIds, {
+        fontFamily: newFontFamily,
+      });
+    }
+  };
+  const handleFontStyleChange = (newFontStyle: string) => {
+    if (state.selectedShapeIds) {
+      state.changeTextProps(state.selectedShapeIds, {
+        fontStyle: newFontStyle,
+      });
+    }
+  };
+  const handleFontSizeChange = (newFontSize: number) => {
+    if (state.selectedShapeIds) {
+      state.changeTextProps(state.selectedShapeIds, {
+        fontSize: newFontSize,
+      });
+    }
+  };
+  const handleLineHeightChange = (newLineHeight: number) => {
+    if (state.selectedShapeIds) {
+      state.changeTextProps(state.selectedShapeIds, {
+        lineHeight: newLineHeight,
+      });
+    }
+  };
+  const handleLetterSpacingChange = (newLetterSpacing: number) => {
+    if (state.selectedShapeIds) {
+      state.changeTextProps(state.selectedShapeIds, {
+        letterSpacing: newLetterSpacing,
+      });
+    }
+  };
+
+  return (
+    <SidebarGroup>
+      <SidebarGroupTitle>Typography</SidebarGroupTitle>
+      <SidebarGroupContent>
+        <SidebarSubGroupTitle>Font</SidebarSubGroupTitle>
+
+        <Select
+          value={currentFontFamily}
+          onValueChange={handleFontFamilyChange}
+        >
+          <SelectTrigger className="w-full">
+            <SelectValue />
+          </SelectTrigger>
+
+          <SelectContent>
+            {FONT_FAMILIES.map((family) => (
+              <SelectItem key={family} value={family}>
+                {family}
+              </SelectItem>
+            ))}
+
+            <SelectItem value="mixed" className="hidden">
+              Mixed
+            </SelectItem>
+          </SelectContent>
+        </Select>
+
+        <div className="flex gap-2 my-5">
+          <div className="input-group flex-1">
+            <label htmlFor="line-height">Font style</label>
+
+            <Select
+              value={currentFontStyle}
+              onValueChange={handleFontStyleChange}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+
+              <SelectContent>
+                {FONT_STYLES.map((style) => (
+                  <SelectItem key={style} value={style}>
+                    {style}
+                  </SelectItem>
+                ))}
+
+                <SelectItem value="mixed" className="hidden">
+                  Mixed
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="input-group flex-1">
+            <label htmlFor="font-size">Font size</label>
+            <NumberInput
+              id="font-size"
+              min={0}
+              value={currentFontSize}
+              onValueChange={handleFontSizeChange}
+            />
+          </div>
+        </div>
+
+        <div className="flex gap-2 my-5">
+          <div className="input-group">
+            <label htmlFor="line-height">Line height</label>
+            <NumberInput
+              id="line-height"
+              min={0}
+              value={currentLineHeight}
+              onValueChange={handleLineHeightChange}
+            />
+          </div>
+
+          <div className="input-group">
+            <label htmlFor="letter-spacing">Letter spacing</label>
+            <NumberInput
+              id="letter-spacing"
+              min={0}
+              value={currentLetterSpacing}
+              onValueChange={handleLetterSpacingChange}
+            />
+          </div>
         </div>
       </SidebarGroupContent>
     </SidebarGroup>
@@ -615,4 +678,21 @@ function getShapeLabel(shapeType: ShapeData["type"]) {
     case "text":
       return "Text";
   }
+}
+
+function getMixedProperty<T>(
+  property: string,
+  objects: Record<string, unknown>[]
+) {
+  if (objects.length === 0) return undefined;
+
+  if (objects.length === 1) {
+    return objects[0][property] as T;
+  }
+
+  if (objects.every((obj) => obj[property] === objects[0][property])) {
+    return objects[0][property] as T;
+  }
+
+  return "mixed";
 }

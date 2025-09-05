@@ -197,4 +197,18 @@
     @apply bg-background text-foreground;
     letter-spacing: var(--tracking-normal);
   }
+
+  button {
+    @apply cursor-pointer;
+  }
+}
+
+@layer components {
+  .input-group {
+    @apply flex flex-col gap-1;
+  }
+
+  .input-group > label {
+    @apply text-xs text-muted-foreground font-medium leading-none;
+  }
 }

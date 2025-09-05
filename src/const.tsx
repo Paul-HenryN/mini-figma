@@ -9,6 +9,18 @@ export const APP_TOOLS: Record<string, Tool> = {
   TEXT: { id: "text", shortcut: "t" },
 } as const;
 
+export const FONT_FAMILIES = [
+  "Arial",
+  "Courier New",
+  "Georgia",
+  "Inter",
+  "Times New Roman",
+  "Trebuchet MS",
+  "Verdana",
+];
+
+export const FONT_STYLES = ["normal", "italic", "bold", "bold italic"];
+
 export const PARTICIPANT_COLORS: string[] = [
   "#E69F00", // Orange
   "#009E73", // bluish green

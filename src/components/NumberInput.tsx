@@ -3,6 +3,7 @@ import { Input } from "./ui/input";
 import { cn } from "@/lib/utils";
 
 export function NumberInput({
+  id,
   value,
   onValueChange,
   className,
@@ -10,6 +11,7 @@ export function NumberInput({
   min,
   placeholder,
 }: {
+  id?: string;
   value?: number | "mixed";
   min?: number;
   max?: number;
@@ -45,6 +47,7 @@ export function NumberInput({
   return (
     <form onSubmit={handleSubmit}>
       <Input
+        id={id}
         type="text"
         value={inputValue}
         className={cn("border-none", className)}
