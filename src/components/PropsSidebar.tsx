@@ -410,7 +410,7 @@ function LayoutPropsGroup() {
                 });
               }
             }}
-            placeholder="Width"
+            inputHandle="W"
           />
           <NumberInput
             value={currentHeight}
@@ -422,7 +422,7 @@ function LayoutPropsGroup() {
                 });
               }
             }}
-            placeholder="Height"
+            inputHandle="H"
           />
         </div>
       </SidebarGroupContent>
@@ -463,6 +463,7 @@ function PositionPropsGroup() {
                 state.moveShapes(state.selectedShapeIds, { x: newValue });
               }
             }}
+            inputHandle="X"
           />
           <NumberInput
             value={currentY}
@@ -471,6 +472,7 @@ function PositionPropsGroup() {
                 state.moveShapes(state.selectedShapeIds, { y: newValue });
               }
             }}
+            inputHandle="Y"
           />
         </div>
       </SidebarGroupContent>

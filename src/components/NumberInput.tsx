@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Input } from "./ui/input";
 import { cn } from "@/lib/utils";
+import { SlidersHorizontalIcon } from "lucide-react";
 
 export function NumberInput({
   id,
@@ -10,6 +11,7 @@ export function NumberInput({
   max,
   min,
   placeholder,
+  inputHandle,
 }: {
   id?: string;
   value?: number | "mixed";
@@ -18,8 +20,10 @@ export function NumberInput({
   onValueChange?: (newValue: number) => void;
   className?: string;
   placeholder?: string;
+  inputHandle?: React.ReactNode;
 }) {
   const [inputValue, setInputValue] = useState<string>(value?.toString() || "");
+  const [isSliding, setSliding] = useState(false);
 
   const submit = () => {
     const newValue = Number(inputValue);
@@ -44,13 +48,52 @@ export function NumberInput({
     setInputValue(value?.toString() || "");
   }, [value]);
 
+  const handleMouseMove = (e: MouseEvent) => {
+    if (!isSliding) return;
+
+    const deltaX = e.movementX;
+    const step = e.shiftKey ? 10 : 1;
+
+    if (typeof value === "number") {
+      onValueChange?.(value + deltaX * step);
+    }
+  };
+
+  const handleMouseUp = () => {
+    setSliding(false);
+  };
+
+  useEffect(() => {
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", handleMouseUp);
+
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, [handleMouseMove, handleMouseUp]);
+
   return (
-    <form onSubmit={handleSubmit}>
+    <form onSubmit={handleSubmit} className="relative">
+      <button
+        type="button"
+        className="absolute left-2 top-1/2 -translate-y-1/2 cursor-ew-resize"
+        onMouseDown={() => {
+          setSliding(true);
+        }}
+      >
+        {inputHandle || <SlidersHorizontalIcon className="size-4" />}
+      </button>
+
       <Input
         id={id}
         type="text"
         value={inputValue}
-        className={cn("border-none", className)}
+        className={cn(
+          "border-0 pl-8",
+          isSliding && "border border-primary",
+          className
+        )}
         onChange={(e) => setInputValue(e.target.value)}
         onBlur={submit}
         max={max}
