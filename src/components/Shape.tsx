@@ -73,7 +73,7 @@ export function Shape({
   const commonProps = {
     ref: shapeRef,
     onClick: (e: KonvaEventObject<MouseEvent>) => {
-      e.cancelBubble = state.currentTool.id !== "move" && !state.isPanning;
+      e.cancelBubble = false;
 
       if (state.currentTool.id === "move" && !state.isPanning) {
         state.toggleSelectShape(data.id, {
@@ -83,16 +83,17 @@ export function Shape({
     },
     onTransform: handleTransform,
     onDragMove: (e: KonvaEventObject<DragEvent>) => {
-      e.cancelBubble = state.currentTool.id !== "move" && !state.isPanning;
+      e.cancelBubble = false;
       onDragMove?.(e);
     },
     onMouseDown: (e: KonvaEventObject<MouseEvent>) => {
-      e.cancelBubble = true;
+      e.cancelBubble = !state.isPanning;
     },
     onMouseUp: (e: KonvaEventObject<MouseEvent>) => {
-      e.cancelBubble = true;
+      e.cancelBubble = false;
     },
-    draggable: isSelected && state.currentTool.id === "move",
+    draggable:
+      isSelected && state.currentTool.id === "move" && !state.isPanning,
   };
 
   if (data.type === "rectangle") {

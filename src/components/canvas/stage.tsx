@@ -87,7 +87,7 @@ export function Stage({ ref }: { ref: React.RefObject<Konva.Stage | null> }) {
     state.updateLocalCursorPosition(null);
   };
 
-  const handleDragMove = (e: Konva.KonvaEventObject<DragEvent>) => {
+  const handleShapeDragMove = (e: Konva.KonvaEventObject<DragEvent>) => {
     const node = e.target;
 
     const updatedX = Math.round(node.x());
@@ -98,6 +98,13 @@ export function Stage({ ref }: { ref: React.RefObject<Konva.Stage | null> }) {
 
     state.syncShapeData(node.id(), { x: updatedX, y: updatedY });
 
+    const pointerPos = ref.current?.getRelativePointerPosition();
+    if (!pointerPos) return;
+
+    state.updateLocalCursorPosition(pointerPos);
+  };
+
+  const handleStageDragMove = () => {
     const pointerPos = ref.current?.getRelativePointerPosition();
     if (!pointerPos) return;
 
@@ -160,6 +167,7 @@ export function Stage({ ref }: { ref: React.RefObject<Konva.Stage | null> }) {
       onMouseLeave={handleMouseLeave}
       onWheel={handleWheel}
       onMouseUp={handleMouseUp}
+      onDragMove={handleStageDragMove}
       draggable={state.isPanning}
       ref={ref}
       className={"cursor-none"}
@@ -167,7 +175,11 @@ export function Stage({ ref }: { ref: React.RefObject<Konva.Stage | null> }) {
       <Layer ref={layerRef}>
         {state.shapes.map((shape) => {
           return (
-            <Shape key={shape.id} data={shape} onDragMove={handleDragMove} />
+            <Shape
+              key={shape.id}
+              data={shape}
+              onDragMove={handleShapeDragMove}
+            />
           );
         })}
 
