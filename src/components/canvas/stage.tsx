@@ -188,18 +188,6 @@ export function Stage({ ref }: { ref: React.RefObject<Konva.Stage | null> }) {
             state.currentParticipantId !== null &&
             selectingclientId === state.currentParticipantId;
 
-          const currentSelectedShapeIds =
-            state.selectedShapeIds[selectingclientId];
-
-          let isText = false;
-
-          if (currentSelectedShapeIds.length === 1) {
-            const shape = state.shapes.find(
-              (shape) => shape.id === currentSelectedShapeIds[0]
-            );
-            isText = shape?.type === "text";
-          }
-
           const participant = state.participants.find(
             (p) => p.id === selectingclientId
           );
@@ -212,7 +200,7 @@ export function Stage({ ref }: { ref: React.RefObject<Konva.Stage | null> }) {
               }}
               onMouseDown={(e) => (e.cancelBubble = true)}
               rotateEnabled={isCurrentClient}
-              resizeEnabled={isCurrentClient && !isText}
+              resizeEnabled={isCurrentClient}
               borderStroke={isCurrentClient ? UI_COLOR : participant?.color}
               anchorStroke={UI_COLOR}
               anchorSize={15}
