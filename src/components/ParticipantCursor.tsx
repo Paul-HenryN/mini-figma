@@ -2,7 +2,12 @@ import { UI_COLOR } from "@/const";
 import { useStore } from "@/store";
 import type { Participant } from "@/types";
 import type Konva from "konva";
-import { HandGrabIcon, HandIcon, MousePointer2Icon } from "lucide-react";
+import {
+  HandGrabIcon,
+  HandIcon,
+  MousePointer2Icon,
+  PlusIcon,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 
 export function ParticipantCursor({
@@ -18,6 +23,7 @@ export function ParticipantCursor({
   const cursorPosition = useStore(
     (state) => state.cursorPositions[participant.id]
   );
+  const currentTool = useStore((state) => state.currentTool);
 
   const [isMouseDown, setMouseDown] = useState(false);
 
@@ -50,6 +56,8 @@ export function ParticipantCursor({
     if (!isCurrentParticipant) return MousePointer2Icon;
     if (isMouseDown && isPanning) return HandGrabIcon;
     if (isPanning) return HandIcon;
+    if (["rectangle", "ellipse", "text"].includes(currentTool.id))
+      return PlusIcon;
 
     return MousePointer2Icon;
   };
