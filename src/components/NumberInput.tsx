@@ -8,8 +8,8 @@ export function NumberInput({
   value,
   onValueChange,
   className,
-  max,
-  min,
+  max = Number.MAX_SAFE_INTEGER,
+  min = Number.MIN_SAFE_INTEGER,
   placeholder,
   inputHandle,
 }: {
@@ -33,10 +33,7 @@ export function NumberInput({
       return;
     }
 
-    const bottom = min || 0;
-    const top = max || Number.MAX_SAFE_INTEGER;
-
-    onValueChange?.(Math.max(Math.min(newValue, top), bottom));
+    onValueChange?.(Math.max(min, Math.min(newValue, max)));
   };
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
@@ -55,7 +52,8 @@ export function NumberInput({
     const step = e.shiftKey ? 10 : 1;
 
     if (typeof value === "number") {
-      onValueChange?.(value + deltaX * step);
+      const newValue = Math.max(min, Math.min(value + deltaX * step, max));
+      onValueChange?.(newValue);
     }
   };
 
@@ -77,10 +75,14 @@ export function NumberInput({
     <form onSubmit={handleSubmit} className="relative">
       <button
         type="button"
-        className="absolute left-2 top-1/2 -translate-y-1/2 cursor-ew-resize"
+        className={cn(
+          "absolute left-2 top-1/2 -translate-y-1/2 cursor-ew-resize",
+          value === "mixed" && "opacity-50 cursor-not-allowed"
+        )}
         onMouseDown={() => {
           setSliding(true);
         }}
+        disabled={value === "mixed"}
       >
         {inputHandle || <SlidersHorizontalIcon className="size-4" />}
       </button>
@@ -96,8 +98,6 @@ export function NumberInput({
         )}
         onChange={(e) => setInputValue(e.target.value)}
         onBlur={submit}
-        max={max}
-        min={min}
         placeholder={placeholder}
       />
     </form>

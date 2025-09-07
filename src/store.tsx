@@ -119,12 +119,12 @@ export const useStore = create<State & Actions>()(
           state.shapes
             .filter((shape) => shapeIds.includes(shape.id))
             .forEach((shape) => {
-              if (width) shape.width = width;
-              if (height) shape.height = height;
+              if (width !== undefined) shape.width = width;
+              if (height !== undefined) shape.height = height;
 
               if (shape.type === "ellipse") {
-                if (width) shape.offsetX = -width / 2;
-                if (height) shape.offsetY = -height / 2;
+                if (width !== undefined) shape.offsetX = -width / 2;
+                if (height !== undefined) shape.offsetY = -height / 2;
               }
             });
         });
