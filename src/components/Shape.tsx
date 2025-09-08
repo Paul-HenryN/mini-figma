@@ -37,6 +37,7 @@ export function Shape({
 
     const updatedWidth = Math.round(node.width() * node.scaleX());
     const updatedHeight = Math.round(node.height() * node.scaleY());
+    const updatedRotation = Math.round(node.rotation());
     const updatedX = Math.round(node.x());
     const updatedY = Math.round(node.y());
 
@@ -45,6 +46,7 @@ export function Shape({
     node.y(updatedY);
     node.width(updatedWidth);
     node.height(updatedHeight);
+    node.rotation(updatedRotation);
 
     if (node.getAttrs().type === "ellipse") {
       node.offsetX(-updatedWidth / 2);
@@ -57,6 +59,7 @@ export function Shape({
         height: updatedHeight,
         offsetX: -updatedWidth / 2,
         offsetY: -updatedHeight / 2,
+        rotation: updatedRotation,
       });
 
       return;
@@ -67,6 +70,7 @@ export function Shape({
       y: updatedY,
       width: updatedWidth,
       height: updatedHeight,
+      rotation: updatedRotation,
     });
   };
 

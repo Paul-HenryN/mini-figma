@@ -31,6 +31,7 @@ export type ShapeData = {
   offsetY?: number;
   width?: number;
   height?: number;
+  rotation?: number;
 } & (
   | {
       type: "rectangle";
