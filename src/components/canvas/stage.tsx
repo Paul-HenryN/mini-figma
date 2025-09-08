@@ -170,7 +170,7 @@ export function Stage({ ref }: { ref: React.RefObject<Konva.Stage | null> }) {
       onDragMove={handleStageDragMove}
       draggable={state.isPanning}
       ref={ref}
-      className={"cursor-none"}
+      className="cursor-none bg-background"
     >
       <Layer ref={layerRef}>
         {state.shapes.map((shape) => {
