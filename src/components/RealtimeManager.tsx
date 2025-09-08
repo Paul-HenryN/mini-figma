@@ -117,6 +117,8 @@ export function RealtimeManager() {
       });
     };
 
+    yShapes.observe(shapesObserver);
+
     wsProvider.on("sync", (isSynced: boolean) => {
       if (!isSynced) return;
 
@@ -125,8 +127,6 @@ export function RealtimeManager() {
       const currentParticipants = Array.from(awareness.getStates().values());
 
       awareness.on("change", awarenessObserver);
-
-      yShapes.observe(shapesObserver);
 
       const savedParticipantRaw = localStorage.getItem(
         `${state.roomId}-${state.currentParticipantId}`
