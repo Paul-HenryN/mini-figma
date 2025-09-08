@@ -44,6 +44,7 @@ export type ShapeData = {
 
 export type Participant = {
   id: string;
+  name: string;
   color?: string;
   joinedAt: number;
 };

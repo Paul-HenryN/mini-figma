@@ -84,7 +84,7 @@ export function ParticipantCursor({
           className="rounded-xs px-1 truncate max-w-[100px] mt-1 ml-5 text-sm"
           style={{ backgroundColor: color }}
         >
-          {participant.id}
+          {participant.name}
         </div>
       )}
     </div>

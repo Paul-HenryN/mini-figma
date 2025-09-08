@@ -17,16 +17,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {
-    const localId = localStorage.getItem("clientId");
+    const savedUser = localStorage.getItem("mosaic-user");
 
-    if (!localId) {
-      const id = crypto.randomUUID();
-      localStorage.setItem("clientId", id);
-      setUser({ id, name: "Anonymous" });
-    } else {
-      setUser({ id: localId, name: "Anonymous" });
+    if (savedUser) {
+      setUser(JSON.parse(savedUser));
     }
   }, []);
+
+  useEffect(() => {
+    if (user) {
+      localStorage.setItem("mosaic-user", JSON.stringify(user));
+    } else {
+      localStorage.removeItem("mosaic-user");
+    }
+  }, [user]);
 
   return (
     <AuthContext.Provider value={{ user, setUser }}>

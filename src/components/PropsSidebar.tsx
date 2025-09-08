@@ -25,7 +25,6 @@ import {
   DEFAULT_STROKE_WIDTH,
   FONT_FAMILIES,
   FONT_STYLES,
-  UI_COLOR,
   ZOOM_FACTOR,
 } from "../const";
 import { Button } from "./ui/button";
@@ -671,7 +670,7 @@ function ParticipantAvatar({
             : participant.color,
         }}
       >
-        {participant.id.at(0)}
+        {participant.name.at(0)}
       </AvatarFallback>
     </Avatar>
   );

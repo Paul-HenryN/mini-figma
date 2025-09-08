@@ -9,6 +9,8 @@ import { useShallow } from "zustand/react/shallow";
 import { shallow } from "zustand/shallow";
 import type { Vector2d } from "konva/lib/types";
 import { deepEqual } from "fast-equals";
+import { toast } from "sonner";
+import { useAuth } from "@/auth-context";
 
 const yDoc = new Y.Doc();
 const yShapes = yDoc.getMap<ShapeData>("shapes");
@@ -23,6 +25,8 @@ export function RealtimeManager() {
       currentParticipantId: state.currentParticipantId,
     }))
   );
+
+  const { user } = useAuth();
 
   useEffect(() => {
     if (!state.roomId) return;
@@ -42,6 +46,7 @@ export function RealtimeManager() {
         for (const item of awarenessStates) {
           const updatedParticipant = {
             id: item.id,
+            name: item.name,
             color: item.color,
             joinedAt: item.joinedAt,
           };
@@ -59,6 +64,10 @@ export function RealtimeManager() {
 
           if (!localParticipant) {
             state.participants.push(updatedParticipant);
+
+            if (updatedParticipant.id !== state.currentParticipantId) {
+              toast.info(`${updatedParticipant.name} is editing this file`);
+            }
           } else {
             if (!deepEqual(localParticipant, updatedParticipant)) {
               Object.assign(localParticipant, updatedParticipant);
@@ -87,6 +96,10 @@ export function RealtimeManager() {
             state.participants.splice(i, 1);
             delete state.cursorPositions[localParticipant.id];
             delete state.selectedShapeIds[localParticipant.id];
+
+            if (localParticipant.id !== state.currentParticipantId) {
+              toast.warning(`${localParticipant.name} left the session`);
+            }
           }
         }
       });
@@ -139,6 +152,7 @@ export function RealtimeManager() {
       } else {
         const newParticipant = {
           id: state.currentParticipantId,
+          name: user?.name || "Anonymous",
           color: PARTICIPANT_COLORS[currentParticipants.length - 1],
           joinedAt: Date.now(),
           cursorPosition: null,

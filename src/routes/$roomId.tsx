@@ -8,6 +8,7 @@ import { SidebarProvider } from "@/components/ui/sidebar";
 import { useStore } from "@/store";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect } from "react";
+import { Toaster } from "sonner";
 import { useShallow } from "zustand/react/shallow";
 
 export const Route = createFileRoute("/$roomId")({
@@ -19,7 +20,6 @@ function RouteComponent() {
   const state = useStore(
     useShallow((state) => ({
       setCurrentParticipantId: state.setCurrentParticipantId,
-      addParticipant: state.addParticipant,
       setRoomId: state.setRoomId,
     }))
   );
@@ -43,6 +43,8 @@ function RouteComponent() {
         <Canvas />
         <Toolbar />
       </SidebarProvider>
+
+      <Toaster theme="dark" position="top-center" richColors />
     </>
   );
 }
