@@ -56,7 +56,10 @@ export function PendingTextInput({
   };
 
   useEffect(() => {
-    const id = setTimeout(() => textAreaRef.current?.focus(), 0);
+    const id = setTimeout(() => {
+      textAreaRef.current?.focus();
+      textAreaRef.current?.select();
+    }, 0);
     return () => clearTimeout(id);
   }, []);
 
