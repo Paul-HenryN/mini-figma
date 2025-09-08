@@ -33,11 +33,17 @@ function RouteComponent() {
 
         <div className="text-muted-foreground *:[a]:hover:text-primary text-center text-xs text-balance *:[a]:underline *:[a]:underline-offset-4">
           Developed by <b>Paul-Henry Ngounou</b> |{" "}
-          <a href="#" className="underline underline-offset-4">
+          <a
+            href="https://github.com/Paul-HenryN"
+            className="underline underline-offset-4"
+          >
             GH
           </a>
           {"  "}
-          <a href="#" className="underline underline-offset-4">
+          <a
+            href="https://www.linkedin.com/in/paul-henry-ngounou-592194285/"
+            className="underline underline-offset-4"
+          >
             LKDN
           </a>
         </div>
