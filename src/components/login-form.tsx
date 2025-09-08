@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useState, type FormEvent } from "react";
 import { useAuth } from "@/auth-context";
+import { motion } from "motion/react";
 
 type FormData = {
   username: string;
@@ -91,7 +92,15 @@ export function LoginForm({
         </div>
 
         {currentStep >= FormStep.Action && (
-          <fieldset id="" className="grid grid-cols-2 gap-2">
+          <motion.fieldset
+            initial={{ opacity: 0, translateX: -20 }}
+            animate={{
+              opacity: 1,
+              translateX: 0,
+              transition: { duration: 0.3 },
+            }}
+            className="grid grid-cols-2 gap-2"
+          >
             <legend className="mb-2">What would you like to do?</legend>
 
             <input
@@ -127,11 +136,19 @@ export function LoginForm({
             >
               <label htmlFor="join">Join room</label>
             </Button>
-          </fieldset>
+          </motion.fieldset>
         )}
 
         {currentStep === FormStep.Room && (
-          <div className="input-group">
+          <motion.div
+            initial={{ opacity: 0, translateX: -20 }}
+            animate={{
+              opacity: 1,
+              translateX: 0,
+              transition: { duration: 0.3 },
+            }}
+            className="input-group"
+          >
             {formData.action === "join" ? (
               <>
                 <label htmlFor="roomId">Room ID</label>
@@ -163,7 +180,7 @@ export function LoginForm({
                 />
               </>
             )}
-          </div>
+          </motion.div>
         )}
 
         <Button type="submit" className="w-full">

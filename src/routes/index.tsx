@@ -30,6 +30,7 @@ function RouteComponent() {
             </div>
           </CardContent>
         </Card>
+
         <div className="text-muted-foreground *:[a]:hover:text-primary text-center text-xs text-balance *:[a]:underline *:[a]:underline-offset-4">
           Developed by <b>Paul-Henry Ngounou</b> |{" "}
           <a href="#" className="underline underline-offset-4">
