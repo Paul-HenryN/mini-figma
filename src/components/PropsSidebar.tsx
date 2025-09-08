@@ -657,12 +657,18 @@ function ParticipantAvatar({
 }) {
   return (
     <Avatar
-      className={cn("size-6 text-white font-bold", className)}
+      className={cn(
+        "size-6",
+        isCurrentParticipant ? "text-white" : "text-foreground",
+        className
+      )}
       style={style}
     >
       <AvatarFallback
         style={{
-          backgroundColor: isCurrentParticipant ? UI_COLOR : participant.color,
+          backgroundColor: isCurrentParticipant
+            ? "var(--background)"
+            : participant.color,
         }}
       >
         {participant.id.at(0)}

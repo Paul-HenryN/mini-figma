@@ -32,13 +32,6 @@ export function RealtimeManager() {
     if (!websocketUrl) throw new Error("WEBSOCKET_URL is not set");
 
     wsProvider = new WebsocketProvider(websocketUrl, state.roomId, yDoc);
-    wsProvider.on("status", (event) => {
-      console.log("Websocket status:", event.status);
-    });
-
-    awareness = wsProvider.awareness;
-
-    const currentParticipants = Array.from(awareness.getStates().values());
 
     const awarenessObserver = () => {
       if (!awareness) return;
@@ -82,6 +75,20 @@ export function RealtimeManager() {
               updatedSelectedShapeIds;
           }
         }
+
+        for (let i = 0; i < state.participants.length; i++) {
+          const localParticipant = state.participants[i];
+
+          const isStillPresent = awarenessStates.find(
+            (p) => p.id === localParticipant.id
+          );
+
+          if (!isStillPresent) {
+            state.participants.splice(i, 1);
+            delete state.cursorPositions[localParticipant.id];
+            delete state.selectedShapeIds[localParticipant.id];
+          }
+        }
       });
     };
 
@@ -110,15 +117,40 @@ export function RealtimeManager() {
       });
     };
 
-    awareness.on("change", awarenessObserver);
-    yShapes.observe(shapesObserver);
+    wsProvider.on("sync", (isSynced: boolean) => {
+      if (!isSynced) return;
 
-    awareness.setLocalState({
-      id: state.currentParticipantId,
-      color: PARTICIPANT_COLORS[currentParticipants.length],
-      joinedAt: Date.now(),
-      cursorPosition: null,
-      selectedShapeIds: [],
+      awareness = wsProvider!.awareness;
+
+      const currentParticipants = Array.from(awareness.getStates().values());
+
+      awareness.on("change", awarenessObserver);
+
+      yShapes.observe(shapesObserver);
+
+      const savedParticipantRaw = localStorage.getItem(
+        `${state.roomId}-${state.currentParticipantId}`
+      );
+
+      if (savedParticipantRaw) {
+        const savedParticipant = JSON.parse(savedParticipantRaw);
+
+        awareness.setLocalState(savedParticipant);
+      } else {
+        const newParticipant = {
+          id: state.currentParticipantId,
+          color: PARTICIPANT_COLORS[currentParticipants.length - 1],
+          joinedAt: Date.now(),
+          cursorPosition: null,
+          selectedShapeIds: [],
+        };
+
+        localStorage.setItem(
+          `${state.roomId}-${state.currentParticipantId}`,
+          JSON.stringify(newParticipant)
+        );
+        awareness.setLocalState(newParticipant);
+      }
     });
 
     return () => {
