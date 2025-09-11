@@ -1,6 +1,6 @@
 import { WebsocketProvider } from "y-websocket";
 import * as Y from "yjs";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import type { Participant, ShapeData } from "@/types";
 import { PARTICIPANT_COLORS } from "@/const";
 import * as awarenessProtocol from "y-protocols/awareness";
@@ -18,7 +18,12 @@ const yShapes = yDoc.getMap<ShapeData>("shapes");
 let wsProvider: WebsocketProvider | null = null;
 let awareness: awarenessProtocol.Awareness | null = null;
 
+type ConnectionStatus = "connected" | "connecting" | "disconnected";
+
 export function RealtimeManager() {
+  const [connectionStatus, setConnectionStatus] =
+    useState<ConnectionStatus>("connecting");
+
   const state = useStore(
     useShallow((state) => ({
       roomId: state.roomId,
@@ -132,6 +137,10 @@ export function RealtimeManager() {
 
     yShapes.observe(shapesObserver);
 
+    wsProvider.on("status", (e) => {
+      setConnectionStatus(e.status);
+    });
+
     wsProvider.on("sync", (isSynced: boolean) => {
       if (!isSynced) return;
 
@@ -174,6 +183,16 @@ export function RealtimeManager() {
       wsProvider?.destroy();
     };
   }, [state.roomId, state.currentParticipantId]);
+
+  if (connectionStatus !== "connected") {
+    return (
+      <div className="absolute z-[1000] inset-0 bg-black/60 grid place-items-center">
+        {connectionStatus === "connecting"
+          ? "Connecting..."
+          : "OOps Something went wrong"}
+      </div>
+    );
+  }
 
   return null;
 }
