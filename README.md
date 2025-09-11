@@ -1,4 +1,4 @@
-# Mini Figma - frontend
+# Mosaic
 
 A collaborative, real-time design tool frontend inspired by Figma
 
@@ -31,8 +31,8 @@ A collaborative, real-time design tool frontend inspired by Figma
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/Paul-HenryN/mini-figma.git
-   cd mini-figma
+   git clone https://github.com/Paul-HenryN/mosaic.git
+   cd mosaic
    ```
 
 2. **Install dependencies**
@@ -54,22 +54,6 @@ A collaborative, real-time design tool frontend inspired by Figma
    ```bash
    pnpm preview
    ```
-
----
-
-## Project Structure
-
-```
-src/
-├── components/      # Reusable UI components (Shadcn UI + custom)
-    ├── ui/          # Reusable UI components (Shadcn UI)
-├── hooks/           # Custom React hooks
-├── App.tsx          # Main application component
-├── const.tsx        # Global constants
-├── context.tsx      # React context for global state
-├── main.tsx         # Entry point
-└── types.ts         # Shared types
-```
 
 ---
 
